@@ -3,9 +3,13 @@ import './globals.css';
 import { AppShell } from '@/components/AppShell';
 
 export const metadata: Metadata = {
-  title: 'Bizora Voice | Self-Hosted AI Telephony & Voice Platform',
+  title: 'Vaani Voice | Sovereign AI Telephony & Multilingual Voice Platform',
   description:
-    '100% self-hosted replacement for Vapi AI with zero external API keys. Multilingual Asian voice agents (Marathi, Hindi, Gujarati, Tamil, English), supplier voice notes, and real-time streaming.',
+    '100% self-hosted sovereign alternative to Vapi AI with zero external API markups. Multilingual regional voice agents (Marathi, Hindi, Gujarati, Tamil, English), dual telephony (Twilio + 4G VoLTE SIM), and sub-400ms streaming.',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/logo.svg',
+  },
 };
 
 export default function RootLayout({

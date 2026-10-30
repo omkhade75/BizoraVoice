@@ -221,7 +221,7 @@ export default function CampaignsPage() {
           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition shadow-sm"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          {showComparison ? 'Hide Vapi vs Bizora Comparison' : 'Vapi.ai vs Bizora Voice Comparison'}
+          {showComparison ? 'Hide Vapi vs Vaani Comparison' : 'Vapi.ai vs Vaani Voice Comparison'}
         </button>
       </div>
 
@@ -231,9 +231,9 @@ export default function CampaignsPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-amber-400" />
-              Side-by-Side Comparison: Vapi.ai vs Bizora Voice
+              Side-by-Side Comparison: Vapi.ai vs Vaani Voice
             </h3>
-            <span className="text-xs text-amber-400 font-mono">Why Bizora Voice Replaces Vapi</span>
+            <span className="text-xs text-amber-400 font-mono">Why Vaani Voice Replaces Vapi</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -242,7 +242,7 @@ export default function CampaignsPage() {
                 <tr className="border-b border-zinc-800 text-zinc-400 font-mono uppercase">
                   <th className="py-2.5 px-3">Capability</th>
                   <th className="py-2.5 px-3 text-amber-400 font-bold">Vapi.ai (Cloud SaaS)</th>
-                  <th className="py-2.5 px-3 text-emerald-400 font-bold">Bizora Voice (100% Self-Hosted)</th>
+                  <th className="py-2.5 px-3 text-emerald-400 font-bold">Vaani Voice (100% Self-Hosted)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60 text-zinc-300">

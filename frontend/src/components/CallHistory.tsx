@@ -54,7 +54,7 @@ export function CallHistory({ calls }: CallHistoryProps) {
                       <div className="w-6 h-6 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-emerald-400">
                         <Bot className="w-3.5 h-3.5" />
                       </div>
-                      <span>{call.agent_name || 'Bizora Assistant'}</span>
+                      <span>{call.agent_name || 'Vaani Assistant'}</span>
                     </td>
                     <td className="py-3.5 px-4 text-zinc-400 font-mono">
                       {formatDate(call.started_at)}

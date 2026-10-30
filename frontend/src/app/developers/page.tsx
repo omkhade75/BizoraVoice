@@ -40,7 +40,7 @@ export default function DevelopersPage() {
       setKeys([
         {
           id: '1',
-          name: 'Bizora Production App',
+          name: 'Vaani Production App',
           key_prefix: 'bv_live_demo9988',
           created_at: new Date().toISOString(),
           calls_count: 142,
@@ -146,7 +146,7 @@ startVoiceCall();`,
 const socket = new WebSocket('ws://localhost:8000/ws/call/live');
 
 socket.onopen = () => {
-  // Send Handshake with your Bizora API Key
+  // Send Handshake with your Vaani API Key
   socket.send(JSON.stringify({
     type: 'init',
     agent_id: 'marathi-supplier-agent',
@@ -160,7 +160,7 @@ socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
     console.log('Event:', msg.type, msg.content || msg.state);
   } else {
-    // Binary raw 24kHz PCM16 audio bytes from Bizora Engine
+    // Binary raw 24kHz PCM16 audio bytes from Vaani Engine
     playRawPcmChunk(event.data);
   }
 };`
@@ -183,7 +183,7 @@ socket.onmessage = (event) => {
           Developer API & Key Management
         </h1>
         <p className="text-xs text-zinc-400 mt-1">
-          Issue scoped API keys to control Bizora Voice programmatically from your backend, mobile app, or Bizora AI.
+          Issue scoped API keys to control Vaani Voice programmatically from your backend, mobile app, or AI assistant.
         </p>
       </div>
 
@@ -316,11 +316,11 @@ socket.onmessage = (event) => {
         </div>
       </div>
 
-      {/* Vapi vs Bizora Voice Comparison Table */}
+      {/* Vapi vs Vaani Voice Comparison Table */}
       <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
         <h3 className="text-xs font-semibold text-zinc-200 flex items-center gap-2">
           <Globe className="w-4 h-4 text-amber-400" />
-          Why Bizora Voice Replaces Vapi AI for Good
+          Why Vaani Voice Replaces Vapi AI for Good
         </h3>
 
         <div className="overflow-x-auto">
@@ -328,7 +328,7 @@ socket.onmessage = (event) => {
             <thead>
               <tr className="border-b border-zinc-800 text-zinc-500">
                 <th className="py-2 font-medium">Feature</th>
-                <th className="py-2 font-medium text-amber-400">Bizora Voice (Self-Hosted)</th>
+                <th className="py-2 font-medium text-amber-400">Vaani Voice (Self-Hosted)</th>
                 <th className="py-2 font-medium text-zinc-500">Vapi.ai (Cloud SaaS)</th>
               </tr>
             </thead>

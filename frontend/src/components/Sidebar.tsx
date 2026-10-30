@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { BrandLogo } from '@/components/BrandLogo';
 import {
   LayoutDashboard,
   PhoneCall,
@@ -40,20 +41,9 @@ export function Sidebar({ onOpenCopilot }: SidebarProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-zinc-800/80 bg-zinc-950 p-4 shrink-0 justify-between select-none">
         <div>
-          {/* Brand Header */}
-          <Link href="/" className="flex items-center gap-3 px-2 mb-6 group cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-zinc-950 flex items-center justify-center font-black text-lg shadow-lg shadow-emerald-950/50 border border-emerald-400/40 group-hover:scale-105 transition-transform">
-              BV
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-zinc-100 text-base tracking-tight">Bizora Voice</span>
-              </div>
-              <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Indian AI Telephony
-              </p>
-            </div>
+          {/* Brand Header with Precision Vector Logo */}
+          <Link href="/" className="flex items-center px-2 mb-6 group cursor-pointer">
+            <BrandLogo size="md" />
           </Link>
 
           {/* AI Helper Pill */}
@@ -68,7 +58,7 @@ export function Sidebar({ onOpenCopilot }: SidebarProps) {
               </div>
               <div>
                 <div className="text-xs font-semibold text-zinc-100">Need Help?</div>
-                <div className="text-[10px] text-zinc-400">Ask Bizora AI Assistant</div>
+                <div className="text-[10px] text-zinc-400">Ask Vaani AI Assistant</div>
               </div>
             </div>
             <span className="text-[10px] text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/15">

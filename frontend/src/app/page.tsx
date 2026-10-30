@@ -389,10 +389,10 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Bizora Voice */}
+            {/* Vaani Voice */}
             <div className="p-5 rounded-2xl bg-zinc-950 border border-emerald-500/30 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                Bizora Voice (Monthly)
+                Vaani Voice (Monthly)
               </span>
               <div className="text-2xl font-extrabold text-emerald-400">
                 ₹{bizoraMonthlyTotal.toLocaleString()}

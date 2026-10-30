@@ -379,7 +379,7 @@ export async function getVoices(): Promise<{ voices: VoiceInfo[] }> {
         { name: 'Swara (Hindi)', gender: 'Female', language: 'Hindi', lang_code: 'hi-IN', sample_text: 'नमस्ते, बिज़ोरा वॉइस में आपका स्वागत है।', is_neural: true },
         { name: 'Madhur (Hindi)', gender: 'Male', language: 'Hindi', lang_code: 'hi-IN', sample_text: 'नमस्ते, मैं आपकी क्या सहायता कर सकता हूँ?', is_neural: true },
         { name: 'Dhwani (Gujarati)', gender: 'Female', language: 'Gujarati', lang_code: 'gu-IN', sample_text: 'નમસ્તે, હું તમને કેવી રીતે મદદ કરી શકું?', is_neural: true },
-        { name: 'Neerja (Indian English)', gender: 'Female', language: 'English', lang_code: 'en-IN', sample_text: 'Hello, welcome to Bizora Voice.', is_neural: true },
+        { name: 'Neerja (Indian English)', gender: 'Female', language: 'English', lang_code: 'en-IN', sample_text: 'Hello, welcome to Vaani Voice.', is_neural: true },
       ],
     };
   }
@@ -419,8 +419,8 @@ export async function getCurrentUser(): Promise<AuthUser> {
   } catch {
     return {
       id: 'user_local',
-      email: 'admin@bizora.local',
-      name: 'Bizora Administrator',
+      email: 'admin@vaanivoice.local',
+      name: 'Vaani Voice Administrator',
       role: 'admin',
       tier: 'unlimited_self_hosted',
       credits: 999999,
@@ -634,12 +634,12 @@ export async function askCopilot(query: string, history?: Array<{ role: string; 
     }
     if (lower.includes('bulk') || lower.includes('campaign') || lower.includes('call')) {
       return {
-        reply: "In Bizora Voice Bulk Phone Dialer, you can upload CSV contact lists or type contacts directly. Bizora dials each contact using your 4G VoLTE SIM gateway (Jio/Airtel ₹299/mo) or direct Twilio with ZERO pre-verification OTP requirements and zero per-minute platform fees.",
+        reply: "In Vaani Voice Bulk Phone Dialer, you can upload CSV contact lists or type contacts directly. Vaani dials each contact using your 4G VoLTE SIM gateway (Jio/Airtel ₹299/mo) or direct Twilio with ZERO pre-verification OTP requirements and zero per-minute platform fees.",
         suggested_actions: ['Open Bulk Phone Dialer', 'Load Marathi Farmer Sample'],
       };
     }
     return {
-      reply: "Bizora Voice is a 100% self-hosted, sovereign AI voice platform designed for Indian businesses. You have full control over custom multilingual agents (Marathi, Hindi, Gujarati, English), visual call-flow canvases, local 4G VoLTE GSM gateways, and Twilio number imports.",
+      reply: "Vaani Voice is a 100% self-hosted, sovereign AI voice platform designed for Indian businesses. You have full control over custom multilingual agents (Marathi, Hindi, Gujarati, English), visual call-flow canvases, local 4G VoLTE GSM gateways, and Twilio number imports.",
       suggested_actions: ['Explore Voice Agents Studio', 'Check Cost Savings Calculator'],
     };
   }

@@ -19,7 +19,7 @@ interface Message {
 const QUICK_PROMPTS = [
   'How do I add a Marathi voice agent for suppliers?',
   'Show Python code to start a voice call using API key',
-  'How does Bizora Voice save $ vs Vapi.ai?',
+  'How does Vaani Voice save $ vs Vapi.ai?',
   'How to send an automated voice note email to a supplier?',
 ];
 
@@ -28,7 +28,7 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
     {
       role: 'assistant',
       content:
-        '👋 Welcome to **Bizora Voice Copilot**! I am your local AI assistant. I can help you configure agents in regional Asian languages (Marathi, Hindi, Gujarati, etc.), generate API integration code (cURL, Python, React), and explain self-hosting cost savings. How can I help you today?',
+        '👋 Welcome to **Vaani Voice Copilot**! I am your local AI assistant. I can help you configure agents in regional Asian languages (Marathi, Hindi, Gujarati, etc.), generate API integration code (cURL, Python, React), and explain self-hosting cost savings. How can I help you today?',
       timestamp: 'Just now',
     },
   ]);
@@ -96,7 +96,7 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
           </div>
           <div>
             <h3 className="font-semibold text-zinc-100 text-sm flex items-center gap-1.5">
-              Bizora Voice Copilot
+              Vaani Voice Copilot
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
                 LOCAL AI
               </span>

@@ -117,7 +117,7 @@ export function AgentWorkflowCanvas({ agent, onTestCall }: AgentWorkflowCanvasPr
       status: 'Fail-safe Enabled',
       icon: PhoneForwarded,
       config: {
-        'Escalation Target': '+91 800-000-BIZORA',
+        'Escalation Target': '+91 800-000-VAANI',
         Fallback: 'Instant Marathi/Hindi Voice Note Email',
         'Barge-in Trigger': 'User says "Manager" / "Bolna hai"',
       },
