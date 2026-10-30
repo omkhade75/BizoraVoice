@@ -120,18 +120,18 @@ export function BrandLogo({
       {showText && (
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
-            <span className={`font-black text-zinc-100 ${currentSize.text} tracking-tight`}>
+            <span className={`font-black text-zinc-900 dark:text-zinc-100 ${currentSize.text} tracking-tight`}>
               Vaani
             </span>
-            <span className={`font-medium text-emerald-400 ${currentSize.text} tracking-tight`}>
+            <span className={`font-semibold text-emerald-600 dark:text-emerald-400 ${currentSize.text} tracking-tight`}>
               Voice
             </span>
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 ml-0.5">
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 ml-0.5">
               AI
             </span>
           </div>
-          <p className={`${currentSize.sub} text-zinc-400 font-medium flex items-center gap-1.5 leading-tight mt-0.5`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <p className={`${currentSize.sub} text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-1.5 leading-tight mt-0.5`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>Sovereign Voice Telephony</span>
           </p>
         </div>

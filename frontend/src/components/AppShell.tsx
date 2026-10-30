@@ -20,14 +20,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isPublicPage) {
     return (
-      <div className="w-full min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
+      <div className="w-full min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-900 dark:selection:text-emerald-200 transition-colors">
         {children}
       </div>
     );
   }
 
   return (
-    <div className="flex w-full min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="flex w-full min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
       {/* Sidebar with onOpenCopilot */}
       <Sidebar onOpenCopilot={() => setCopilotOpen(true)} />
 
