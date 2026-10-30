@@ -1,0 +1,43 @@
+services:
+  # ── Bizora Voice Backend (FastAPI / Python) ───────────────────────────
+  - type: web
+    name: bizora-voice-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./bizvoice.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: bizora-voice-backend
+          property: host
+
+  # ── Bizora Voice Frontend (Next.js / Node.js) ────────────────────────
+  - type: web
+    name: bizora-voice-frontend
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: bizora-voice-backend
+          property: host
