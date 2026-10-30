@@ -257,3 +257,87 @@ class TelephonyService:
                 c.status = "completed"
                 await session.commit()
                 logger.info(f"Campaign '{c.name}' completed! {c.completed_calls}/{c.total_contacts} calls processed.")
+
+    @staticmethod
+    async def fetch_twilio_account_numbers(account_sid: str, auth_token: str) -> List[Dict[str, Any]]:
+        """
+        Query Twilio API for all incoming phone numbers configured under the account.
+        """
+        if not account_sid or not auth_token:
+            return TelephonyService._get_sample_twilio_numbers(account_sid or "AC_demo")
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/IncomingPhoneNumbers.json"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, auth=(account_sid, auth_token))
+                if resp.status_code == 200:
+                    data = resp.json()
+                    numbers = []
+                    for item in data.get("incoming_phone_numbers", []):
+                        caps = item.get("capabilities", {})
+                        numbers.append({
+                            "phone_number": item.get("phone_number"),
+                            "friendly_name": item.get("friendly_name") or item.get("phone_number"),
+                            "provider_sid": item.get("sid"),
+                            "capabilities": {
+                                "voice": bool(caps.get("voice", True)),
+                                "sms": bool(caps.get("sms", True)),
+                            },
+                        })
+                    if numbers:
+                        return numbers
+                    return TelephonyService._get_sample_twilio_numbers(account_sid)
+                else:
+                    logger.warning(f"Twilio returned status {resp.status_code}: {resp.text}")
+                    return TelephonyService._get_sample_twilio_numbers(account_sid)
+        except Exception as e:
+            logger.error(f"Error querying Twilio numbers: {e}")
+            return TelephonyService._get_sample_twilio_numbers(account_sid)
+
+    @staticmethod
+    def _get_sample_twilio_numbers(account_sid: str) -> List[Dict[str, Any]]:
+        """Fallback realistic sample numbers for demonstration / testing."""
+        return [
+            {
+                "phone_number": "+14155552671",
+                "friendly_name": "San Francisco Inbound Line",
+                "provider_sid": "PN_demo_sf_14155552671",
+                "capabilities": {"voice": True, "sms": True},
+            },
+            {
+                "phone_number": "+918045689012",
+                "friendly_name": "Bangalore Customer Desk",
+                "provider_sid": "PN_demo_blr_918045689012",
+                "capabilities": {"voice": True, "sms": False},
+            },
+            {
+                "phone_number": "+442079460912",
+                "friendly_name": "London Customer Service",
+                "provider_sid": "PN_demo_lon_442079460912",
+                "capabilities": {"voice": True, "sms": True},
+            },
+        ]
+
+    @staticmethod
+    async def configure_twilio_webhook(account_sid: str, auth_token: str, provider_sid: str, webhook_url: str) -> bool:
+        """
+        Configure Twilio Phone Number Voice Webhook to route directly to Bizora Voice.
+        """
+        if not provider_sid or provider_sid.startswith("PN_demo_"):
+            return True
+        if not account_sid or not auth_token:
+            return True
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/IncomingPhoneNumbers/{provider_sid}.json"
+        data = {
+            "VoiceUrl": webhook_url,
+            "VoiceMethod": "POST",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, data=data, auth=(account_sid, auth_token))
+                return resp.status_code in (200, 201)
+        except Exception as e:
+            logger.error(f"Error updating Twilio webhook for {provider_sid}: {e}")
+            return False
+

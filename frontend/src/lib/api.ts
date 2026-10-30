@@ -341,3 +341,88 @@ export async function deleteCampaign(id: string): Promise<{ status: string }> {
     method: 'DELETE',
   });
 }
+
+// ── Telephony & Twilio Number Import ─────────────────────────────────────
+export interface PhoneNumber {
+  id: string;
+  phone_number: string;
+  friendly_name?: string;
+  provider: 'twilio' | 'gsm_gateway' | 'sip';
+  provider_sid?: string;
+  agent_id?: string;
+  agent_name?: string;
+  capabilities: string;
+  status: 'active' | 'inactive';
+  webhook_url?: string;
+  created_at: string;
+}
+
+export interface TwilioAvailableNumber {
+  phone_number: string;
+  friendly_name: string;
+  provider_sid: string;
+  capabilities: { voice: boolean; sms: boolean };
+  already_imported: boolean;
+}
+
+export interface TwilioImportPayload {
+  account_sid?: string;
+  auth_token?: string;
+  numbers: Array<{
+    phone_number: string;
+    friendly_name?: string;
+    provider_sid?: string;
+  }>;
+  agent_id?: string;
+  auto_configure_webhook?: boolean;
+}
+
+export async function getPhoneNumbers(): Promise<PhoneNumber[]> {
+  return request('/api/telephony/numbers');
+}
+
+export async function queryTwilioNumbers(
+  account_sid: string,
+  auth_token: string
+): Promise<TwilioAvailableNumber[]> {
+  return request('/api/telephony/twilio/query-numbers', {
+    method: 'POST',
+    body: JSON.stringify({ account_sid, auth_token }),
+  });
+}
+
+export async function importTwilioNumbers(payload: TwilioImportPayload): Promise<PhoneNumber[]> {
+  return request('/api/telephony/twilio/import', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function registerCustomNumber(payload: {
+  phone_number: string;
+  friendly_name?: string;
+  provider?: string;
+  agent_id?: string;
+}): Promise<PhoneNumber> {
+  return request('/api/telephony/numbers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePhoneNumber(
+  id: string,
+  payload: { friendly_name?: string; agent_id?: string; status?: string }
+): Promise<PhoneNumber> {
+  return request(`/api/telephony/numbers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deletePhoneNumber(id: string): Promise<{ success: boolean; message: string }> {
+  return request(`/api/telephony/numbers/${id}`, {
+    method: 'DELETE',
+  });
+}
+

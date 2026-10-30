@@ -14,6 +14,7 @@ import {
   Sparkles,
   ShieldCheck,
   CheckCircle2,
+  Hash,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,6 +24,7 @@ interface SidebarProps {
 const NAV_ITEMS = [
   { href: '/', label: 'Overview', icon: LayoutDashboard, badge: null },
   { href: '/call', label: 'Make a Voice Call', icon: PhoneCall, badge: 'Live' },
+  { href: '/numbers', label: 'Phone Numbers & Twilio', icon: Hash, badge: 'Twilio+GSM' },
   { href: '/campaigns', label: 'Bulk Phone Dialer', icon: Radio, badge: 'Automated' },
   { href: '/agents', label: 'Voice Receptionists', icon: Bot, badge: '4 Active' },
   { href: '/outreach', label: 'Voice Notes & WhatsApp', icon: MailCheck, badge: null },

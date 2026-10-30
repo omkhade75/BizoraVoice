@@ -275,3 +275,53 @@ class CampaignResponse(BaseModel):
 
 class CampaignDetailResponse(CampaignResponse):
     contacts: List[CampaignContactResponse]
+
+
+# ── Telephony & Twilio Number Import Models ─────────────────────────────
+class TwilioCredentialsRequest(BaseModel):
+    account_sid: str = Field(..., min_length=10)
+    auth_token: str = Field(..., min_length=10)
+
+
+class TwilioAvailableNumber(BaseModel):
+    phone_number: str
+    friendly_name: str
+    provider_sid: str
+    capabilities: Dict[str, bool] = {"voice": True, "sms": True}
+    already_imported: bool = False
+
+
+class TwilioImportRequest(BaseModel):
+    account_sid: Optional[str] = None
+    auth_token: Optional[str] = None
+    numbers: List[Dict[str, Any]]  # List of { phone_number, friendly_name, provider_sid }
+    agent_id: Optional[str] = None
+    auto_configure_webhook: bool = True
+
+
+class PhoneNumberCreate(BaseModel):
+    phone_number: str
+    friendly_name: Optional[str] = None
+    provider: str = "twilio"  # twilio or gsm_gateway
+    agent_id: Optional[str] = None
+
+
+class PhoneNumberUpdate(BaseModel):
+    friendly_name: Optional[str] = None
+    agent_id: Optional[str] = None
+    status: Optional[str] = None
+
+
+class PhoneNumberResponse(BaseModel):
+    id: str
+    phone_number: str
+    friendly_name: Optional[str] = None
+    provider: str
+    provider_sid: Optional[str] = None
+    agent_id: Optional[str] = None
+    agent_name: Optional[str] = None
+    capabilities: str
+    status: str
+    webhook_url: Optional[str] = None
+    created_at: str
+

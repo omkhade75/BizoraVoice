@@ -217,3 +217,25 @@ class CampaignContact(Base):
 
     campaign = relationship("Campaign", back_populates="contacts")
 
+
+class PhoneNumber(Base):
+    """Imported or Provisioned Phone Numbers (Twilio BYOT or 4G GSM Gateway)."""
+    __tablename__ = "phone_numbers"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True)
+    phone_number = Column(String(40), nullable=False, unique=True, index=True)
+    friendly_name = Column(String(100), nullable=True)
+    provider = Column(String(30), default="twilio")  # twilio, gsm_gateway, sip
+    provider_sid = Column(String(100), nullable=True)  # Twilio PN... SID
+    capabilities = Column(String(100), default='{"voice": true, "sms": true}')
+    status = Column(String(20), default="active")  # active, inactive
+    webhook_url = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+    agent = relationship("Agent")
+
+

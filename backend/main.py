@@ -15,6 +15,7 @@ from api.rest import router as rest_router
 from api.websocket import ws_router
 from api.auth import auth_router, api_keys_router
 from api.campaigns import router as campaigns_router
+from api.telephony import router as telephony_router
 from engines.registry import llm_engine
 
 # Configure logging
@@ -71,6 +72,7 @@ app.include_router(auth_router)
 app.include_router(api_keys_router)
 app.include_router(rest_router)
 app.include_router(campaigns_router)
+app.include_router(telephony_router)
 app.include_router(ws_router)
 
 
