@@ -225,3 +225,53 @@ class HealthResponse(BaseModel):
     tts_status: EngineStatus
     vad_status: EngineStatus
     active_sessions_count: int
+
+
+# ── Bulk Outbound Calling Campaigns ─────────────────────────────────────
+class CampaignContactCreate(BaseModel):
+    name: str
+    phone_number: str
+    variables: Optional[Dict[str, Any]] = None
+
+
+class CampaignCreate(BaseModel):
+    name: str
+    agent_id: str
+    description: Optional[str] = None
+    telephony_provider: str = "simulation"  # twilio, sip_gsm, simulation
+    caller_phone: Optional[str] = None
+    contacts: List[CampaignContactCreate]
+
+
+class CampaignContactResponse(BaseModel):
+    id: str
+    name: str
+    phone_number: str
+    variables: Optional[Dict[str, Any]] = None
+    status: str
+    duration: int = 0
+    transcript: Optional[str] = None
+    call_sid: Optional[str] = None
+    attempted_at: Optional[str] = None
+
+
+class CampaignResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    agent_id: Optional[str] = None
+    agent_name: Optional[str] = None
+    status: str
+    telephony_provider: str
+    caller_phone: Optional[str] = None
+    total_contacts: int
+    completed_calls: int
+    failed_calls: int
+    total_duration_sec: int
+    cost_saved_usd: float
+    cost_saved_inr: float
+    created_at: str
+
+
+class CampaignDetailResponse(CampaignResponse):
+    contacts: List[CampaignContactResponse]

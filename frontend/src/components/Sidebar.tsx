@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   PhoneCall,
+  Radio,
   Bot,
   MailCheck,
   Code2,
@@ -22,6 +23,7 @@ interface SidebarProps {
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/call', label: 'Live Studio', icon: PhoneCall },
+  { href: '/campaigns', label: 'Bulk Outbound Calling', icon: Radio },
   { href: '/agents', label: 'Agent Studio', icon: Bot },
   { href: '/outreach', label: 'Voice Notes & Outreach', icon: MailCheck },
   { href: '/developers', label: 'Developer API & Keys', icon: Code2 },

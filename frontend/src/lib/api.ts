@@ -263,3 +263,81 @@ export async function askCopilot(message: string, context?: string): Promise<Cop
 export function getAudioFileUrl(filename: string): string {
   return `${API_BASE}/api/voicenotes/${filename}`;
 }
+
+// Bulk Outbound Calling Campaigns
+export interface CampaignContact {
+  id: string;
+  name: string;
+  phone_number: string;
+  variables?: Record<string, any>;
+  status: 'pending' | 'calling' | 'connected' | 'completed' | 'failed' | 'busy' | 'no_answer';
+  duration: number;
+  transcript?: string;
+  call_sid?: string;
+  attempted_at?: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+  agent_id?: string;
+  agent_name?: string;
+  status: 'draft' | 'running' | 'paused' | 'completed';
+  telephony_provider: 'twilio' | 'sip_gsm' | 'simulation';
+  caller_phone?: string;
+  total_contacts: number;
+  completed_calls: number;
+  failed_calls: number;
+  total_duration_sec: number;
+  cost_saved_usd: number;
+  cost_saved_inr: number;
+  created_at: string;
+  contacts?: CampaignContact[];
+}
+
+export interface CreateCampaignPayload {
+  name: string;
+  agent_id: string;
+  description?: string;
+  telephony_provider: string;
+  caller_phone?: string;
+  contacts: Array<{
+    name: string;
+    phone_number: string;
+    variables?: Record<string, any>;
+  }>;
+}
+
+export async function getCampaigns(): Promise<Campaign[]> {
+  return request('/api/campaigns');
+}
+
+export async function getCampaign(id: string): Promise<Campaign> {
+  return request(`/api/campaigns/${id}`);
+}
+
+export async function createCampaign(payload: CreateCampaignPayload): Promise<Campaign> {
+  return request('/api/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function startCampaign(id: string): Promise<{ status: string; message: string }> {
+  return request(`/api/campaigns/${id}/start`, {
+    method: 'POST',
+  });
+}
+
+export async function pauseCampaign(id: string): Promise<{ status: string }> {
+  return request(`/api/campaigns/${id}/pause`, {
+    method: 'POST',
+  });
+}
+
+export async function deleteCampaign(id: string): Promise<{ status: string }> {
+  return request(`/api/campaigns/${id}`, {
+    method: 'DELETE',
+  });
+}

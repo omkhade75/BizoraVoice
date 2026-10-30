@@ -56,6 +56,7 @@ class User(Base):
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
     calls = relationship("Call", back_populates="user")
     voicenotes = relationship("VoiceNoteEnquiry", back_populates="user")
+    campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
 
 
 class ApiKey(Base):
@@ -101,6 +102,7 @@ class Agent(Base):
 
     user = relationship("User", back_populates="agents")
     calls = relationship("Call", back_populates="agent", cascade="all, delete-orphan")
+    campaigns = relationship("Campaign", back_populates="agent")
 
 
 class Call(Base):
@@ -170,3 +172,48 @@ class CopilotMessage(Base):
     role = Column(String(20), nullable=False)  # user, assistant
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=utc_now)
+
+
+class Campaign(Base):
+    """Bulk Outbound Calling Campaign with Dynamic Variable Templating."""
+    __tablename__ = "campaigns"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True)
+    name = Column(String(120), nullable=False)
+    description = Column(String(255), nullable=True)
+    status = Column(String(30), default="draft")  # draft, running, paused, completed
+    telephony_provider = Column(String(40), default="simulation")  # twilio, sip_gsm, simulation
+    caller_phone = Column(String(40), nullable=True)
+    total_contacts = Column(Integer, default=0)
+    completed_calls = Column(Integer, default=0)
+    failed_calls = Column(Integer, default=0)
+    total_duration_sec = Column(Integer, default=0)
+    cost_saved_usd = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User", back_populates="campaigns")
+    agent = relationship("Agent", back_populates="campaigns")
+    contacts = relationship("CampaignContact", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class CampaignContact(Base):
+    """Recipient Contact within an Outbound Calling Campaign."""
+    __tablename__ = "campaign_contacts"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    campaign_id = Column(String(36), ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    phone_number = Column(String(40), nullable=False, index=True)
+    variables = Column(Text, default="{}")  # JSON string of custom fields (amount, item, city, etc.)
+    status = Column(String(30), default="pending")  # pending, calling, connected, completed, failed, busy, no_answer
+    call_sid = Column(String(100), nullable=True)
+    duration = Column(Integer, default=0)
+    transcript = Column(Text, nullable=True)
+    error_reason = Column(String(255), nullable=True)
+    attempted_at = Column(DateTime, nullable=True)
+
+    campaign = relationship("Campaign", back_populates="contacts")
+

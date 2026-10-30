@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     # ── Database ────────────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./bizvoice.db"
 
+    # ── Telephony & Outbound Calling ────────────────────────────────────
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_phone_number: str = ""
+    sip_gateway_host: str = ""
+    sip_gateway_port: int = 5060
+    sip_gateway_user: str = ""
+    sip_gateway_password: str = ""
+    public_base_url: str = "http://localhost:8000"
+
     # ── Session ─────────────────────────────────────────────────────────
     max_sessions: int = 100
     session_timeout_seconds: int = 3600
