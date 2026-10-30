@@ -34,65 +34,157 @@ import {
   Wheat,
   Truck,
   Check,
+  Coffee,
+  Mic,
+  Cpu,
+  Layers,
+  PhoneForwarded,
+  Hash,
+  Activity,
+  FileSpreadsheet,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { formatDuration, formatDate } from '@/lib/utils';
+import { BrandLogo } from '@/components/BrandLogo';
 
 interface PersonaDemo {
   id: string;
   name: string;
   role: string;
+  industry: string;
   language: string;
   langTag: string;
   icon: any;
   greetingText: string;
   audioSampleText: string;
   accent: string;
+  agentId: string;
 }
 
 const PERSONA_DEMOS: PersonaDemo[] = [
   {
     id: 'taj-hotel',
-    name: 'Taj Residency Desk',
-    role: 'Hotel Room Booking & Concierge',
+    name: 'Taj Residency Concierge',
+    role: 'Luxury Hotel Room Booking & Dining',
+    industry: 'Hospitality',
     language: 'Hinglish / Hindi',
     langTag: 'HI',
     icon: Building2,
-    greetingText: '“Namaste! Welcome to Taj Residency. How may I assist you with your room reservation or dining today?”',
+    greetingText: '“Namaste! Welcome to Taj Residency. How may I assist you with your luxury room reservation or table dining today?”',
     audioSampleText: 'नमस्ते! ताज रेसिडेंसी में आपका स्वागत है। क्या मैं आपके लिए कमरा बुक करूँ या कोई अन्य सहायता करूँ?',
-    accent: 'Warm & Hospitable',
+    accent: 'Warm, Polite & Hospitable',
+    agentId: 'taj-hotel',
   },
   {
     id: 'krishi-mandi',
     name: 'Maharashtra Krishi Kendra',
-    role: 'Farmer & Mandi Price Assistant',
+    role: 'Farmer Advisory & APMC Mandi Rates',
+    industry: 'Agriculture',
     language: 'Pure Marathi',
     langTag: 'MR',
     icon: Wheat,
-    greetingText: '“नमस्कार शेतकरी बंधूंनो! आजच्या नाशिक बाजार समितीमधील कांद्याचे आणि खतांचे दर जाणून घेण्यासाठी बोला.”',
-    audioSampleText: 'नमस्कार! आज कांद्याला प्रति क्विंटल २,१०० रुपये भाव आहे. आपल्याला खतांची ऑर्डर द्यायची आहे का?',
+    greetingText: '“नमस्कार शेतकरी बंधूंनो! आजच्या नाशिक बाजार समितीमधील लाल कांद्याचे आणि खतांचे दर जाणून घेण्यासाठी बोला.”',
+    audioSampleText: 'नमस्कार! आज नाशिक मार्केटमध्ये कांद्याला प्रति क्विंटल २,४५० रुपये भाव आहे. आपल्याला खतांची ऑर्डर द्यायची आहे का?',
     accent: 'Native Rural Marathi',
+    agentId: 'krishi-kendra',
   },
   {
     id: 'dental-clinic',
-    name: 'Dr. Patil Dental Clinic',
-    role: 'Clinic Reception & Appointments',
+    name: 'Dr. Patil Dental Care',
+    role: 'Clinic Triage, Appointments & Follow-up',
+    industry: 'Healthcare',
     language: 'Hindi & English',
     langTag: 'HI',
     icon: Stethoscope,
-    greetingText: '“Hello, Dr. Patil’s Dental Care. Are you looking to book a teeth cleaning or root canal consultation?”',
-    audioSampleText: 'नमस्ते, डॉक्टर पाटील क्लिनिक। क्या आप शाम ५ बजे का अपॉइंटमेंट बुक करना चाहते हैं?',
+    greetingText: '“Hello, Dr. Patil’s Dental Care. Are you looking to book an appointment for teeth cleaning or a root canal consultation?”',
+    audioSampleText: 'नमस्ते, डॉक्टर पाटील डेंटल क्लिनिक। क्या आप शाम ५ बजे का इमरजेंसी अपॉइंटमेंट बुक करना चाहते हैं?',
     accent: 'Professional & Caring',
+    agentId: 'patil-dental',
   },
   {
     id: 'apmc-wholesale',
     name: 'APMC Logistics & Mandi',
-    role: 'Wholesale Supplier Orders',
-    language: 'Hindi / English',
+    role: 'Wholesale Grain Dispatch & Tracking',
+    industry: 'Logistics',
+    language: 'Hindi & English',
     langTag: 'EN',
     icon: Truck,
-    greetingText: '“Namaste! APMC Wholesale Dispatch. Inquiring about truck delivery schedules or bulk grain orders?”',
+    greetingText: '“Namaste! APMC Wholesale Dispatch. Inquiring about truck delivery schedules, dispatch slips, or bulk grain orders?”',
     audioSampleText: 'नमस्ते जी, आपका ५० बोरी गेहूं का ऑर्डर डिस्पैच हो गया है, कल सुबह ११ बजे तक पहुंचेगा।',
-    accent: 'Fast & Direct',
+    accent: 'Direct & Fast-Paced',
+    agentId: 'apmc-mandi',
+  },
+  {
+    id: 'chai-cafe',
+    name: 'Chai Tapri & Quick Cafe',
+    role: 'Food Delivery & Instant UPI Payment Link',
+    industry: 'F&B Retail',
+    language: 'Hinglish / Hindi',
+    langTag: 'HI',
+    icon: Coffee,
+    greetingText: '“Namaste bhaiya! Chai Tapri me swagat hai. Adrak chai aur bun-maska pack kar du ya parcel mangwana hai?”',
+    audioSampleText: 'नमस्ते भैया! अदरक चाय और बन-मस्का का आर्डर ले लिया है। आपके फोन पर यूपीआई पेमेंट लिंक भेज दिया है।',
+    accent: 'Energetic & Street-Smart',
+    agentId: 'taj-hotel',
+  },
+];
+
+interface PipelineStage {
+  id: string;
+  name: string;
+  tech: string;
+  latency: string;
+  cost: string;
+  description: string;
+  icon: any;
+}
+
+const PIPELINE_STAGES: PipelineStage[] = [
+  {
+    id: 'telephony',
+    name: '1. Ingress & Telephony',
+    tech: '4G VoLTE GSM Gateway / Twilio Streams',
+    latency: '24ms',
+    cost: '₹0 (Jio SIM ₹299/mo)',
+    description: 'Bi-directional audio bridge connecting ordinary Indian mobile SIMs or Twilio imported numbers with zero recipient OTP pre-verification blocks.',
+    icon: Radio,
+  },
+  {
+    id: 'vad',
+    name: '2. Voice Activity Detection',
+    tech: 'Silero VAD (Local Engine)',
+    latency: '15ms',
+    cost: '₹0.00 / Free',
+    description: 'Sub-second conversational turnarounds with intelligent barge-in detection. When the human speaks, the bot stops talking instantly.',
+    icon: Mic,
+  },
+  {
+    id: 'stt',
+    name: '3. Speech-to-Text',
+    tech: 'faster-whisper (CTranslate2)',
+    latency: '85ms',
+    cost: '₹0.00 / Free',
+    description: 'Local GPU/CPU speech recognition tuned specifically for Indian accents, code-mixed Hinglish, and regional Marathi/Gujarati/Tamil phrasing.',
+    icon: Activity,
+  },
+  {
+    id: 'llm',
+    name: '4. Reasoning & Dialogue',
+    tech: 'Qwen2.5 / DeepSeek via Local Ollama',
+    latency: '110ms',
+    cost: '₹0.00 / Free',
+    description: 'Self-hosted LLM with zero per-token cloud bills. Understands context, extracts appointment times, prices, and handles conversational logic.',
+    icon: Cpu,
+  },
+  {
+    id: 'tts',
+    name: '5. Neural Voice Synthesis',
+    tech: 'Kokoro ONNX & Indic Neural TTS',
+    latency: '95ms',
+    cost: '₹0.00 / Free',
+    description: 'Studio-grade 24kHz HD audio generation with native emotional inflection in Marathi (Aarohi), Hindi (Swara/Madhur), and Gujarati (Dhwani).',
+    icon: Volume2,
   },
 ];
 
@@ -106,14 +198,29 @@ export default function DashboardPage() {
   const [activePersona, setActivePersona] = useState<PersonaDemo>(PERSONA_DEMOS[0]);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
+  // Active pipeline stage tab
+  const [selectedPipelineStage, setSelectedPipelineStage] = useState<PipelineStage>(PIPELINE_STAGES[0]);
+
   // Interactive Cost Calculator State
   const [monthlyCalls, setMonthlyCalls] = useState<number>(5000);
   const avgCallMinutes = 3;
-  const vapiCostPerMin = 18; // approx ₹18/min ($0.20) for Vapi + ElevenLabs + GPT-4o
+  const vapiCostPerMin = 18; // approx ₹18/min ($0.20) for Vapi + ElevenLabs + OpenAI
   const vapiMonthlyTotal = monthlyCalls * avgCallMinutes * vapiCostPerMin;
-  const bizoraMonthlyTotal = 299; // Jio unlimited calling SIM
-  const monthlySavings = vapiMonthlyTotal - bizoraMonthlyTotal;
+  const vaaniMonthlyTotal = 299; // Jio unlimited calling SIM
+  const monthlySavings = vapiMonthlyTotal - vaaniMonthlyTotal;
   const annualSavings = monthlySavings * 12;
+
+  // Interactive Live Call Demo State
+  const [simulatedCallActive, setSimulatedCallActive] = useState(false);
+  const [simulatedTurnIndex, setSimulatedTurnIndex] = useState(0);
+
+  const SIMULATED_DIALOGUE = [
+    { speaker: 'Assistant', text: 'Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?' },
+    { speaker: 'Customer', text: 'Namaste, do you have a Deluxe Lake View suite available this Saturday?' },
+    { speaker: 'Assistant', text: 'Certainly sir! We have 2 Lake View suites available for this Saturday at ₹14,500 plus taxes. Shall I reserve one under your number?' },
+    { speaker: 'Customer', text: 'Yes please, and kindly add complimentary breakfast.' },
+    { speaker: 'Assistant', text: 'Done! Your reservation is confirmed with breakfast at The Verandah. I have sent an SMS receipt to your mobile.' },
+  ];
 
   useEffect(() => {
     Promise.all([
@@ -148,76 +255,249 @@ export default function DashboardPage() {
     }
   };
 
+  const handleTriggerSimulatedDialogue = (index: number) => {
+    setSimulatedTurnIndex(index);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(SIMULATED_DIALOGUE[index].text);
+      utterance.rate = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   return (
-    <div className="space-y-10 max-w-7xl pb-16">
-      {/* 1. HERO SECTION: Grand, Warm, Human & Tactile */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-zinc-900/90 to-zinc-950 border border-zinc-800/80 p-6 md:p-10 shadow-2xl">
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>AI Voice Telephony Built for India • 100% Self-Hosted</span>
+    <div className="space-y-12 max-w-7xl pb-20">
+      {/* 0. TOP ANNOUNCEMENT BANNER */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-zinc-900/90 border border-emerald-500/20 text-xs shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="font-semibold text-zinc-200">
+            India's Sovereign AI Telephony Platform
+          </span>
+          <span className="hidden sm:inline text-zinc-500">•</span>
+          <span className="hidden sm:inline text-zinc-400">
+            100% Free Bulk Outbound Calling + 1-Click Twilio Number Import
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            0% VAPI CLOUD MARKUP
+          </span>
+        </div>
+      </div>
+
+      {/* 1. HERO SECTION: Grand, Tactile & Interactive */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-zinc-900/90 via-zinc-900/40 to-zinc-950 border border-zinc-800/80 p-6 md:p-10 shadow-2xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* Left Column: Headline & Value Prop */}
+          <div className="lg:col-span-7 space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Vaani Voice • Sovereign AI Telephony Engine</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-zinc-100 leading-[1.12]">
+              The Voice AI Platform Built for{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-400">
+                Real Indian Business.
+              </span>
+            </h1>
+
+            <p className="text-sm sm:text-base text-zinc-400 max-w-xl leading-relaxed">
+              Answers incoming customer calls in sub-seconds, speaks fluent{' '}
+              <strong className="text-zinc-200 font-semibold">
+                Marathi, Hindi, Gujarati, and Indian English
+              </strong>
+              , and dials thousands of leads automatically with zero per-minute fees or recipient OTP locks.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Link
+                href="/call"
+                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-lg shadow-emerald-950/50 hover:scale-105 active:scale-95"
+              >
+                <PhoneCall className="w-4 h-4 fill-current" />
+                <span>Test Live Voice Call</span>
+              </Link>
+
+              <Link
+                href="/campaigns"
+                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-zinc-100 border border-zinc-700/80 font-semibold text-sm transition-all hover:scale-105 active:scale-95"
+              >
+                <Radio className="w-4 h-4 text-emerald-400" />
+                <span>Launch Bulk Phone Dialer</span>
+              </Link>
+
+              <Link
+                href="/numbers"
+                className="inline-flex items-center gap-2 px-4 py-3.5 rounded-2xl bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800 font-medium text-xs transition-all"
+              >
+                <Hash className="w-3.5 h-3.5 text-amber-400" />
+                <span>Twilio BYOT & GSM Numbers</span>
+              </Link>
+            </div>
+
+            {/* Micro Feature Trust Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-zinc-800/70">
+              <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>₹299/mo Unlimited Calling</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Zero OTP Pre-Verification</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Sub-400ms Voice Latency</span>
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-zinc-100 leading-[1.15]">
-            Your 24/7 AI Receptionist & Outbound Phone Operator.
-          </h1>
+          {/* Right Column: Live Interactive Telephony Console Card */}
+          <div className="lg:col-span-5">
+            <div className="relative rounded-3xl bg-zinc-950 border border-emerald-500/30 p-5 shadow-2xl space-y-4">
+              {/* Header Bar */}
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="text-xs font-mono font-semibold text-zinc-300">
+                    LIVE CALL TELEMETRY
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  4G VoLTE ACTIVE
+                </span>
+              </div>
 
-          <p className="text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed">
-            Answers incoming calls, books appointments, speaks fluent{' '}
-            <strong className="text-zinc-200 font-semibold">Marathi, Hindi, Gujarati, and English</strong>,
-            and dials hundreds of leads automatically. No per-minute fees, no Vapi markup.
-          </p>
+              {/* Caller Identity Pill */}
+              <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-zinc-100">+91 98200 11223</div>
+                    <div className="text-[10px] text-zinc-400">Incoming Caller • Mumbai, MH</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold">01:42</span>
+                  <div className="text-[9px] text-zinc-500 font-mono">16kHz PCM</div>
+                </div>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Link
-              href="/call"
-              className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-lg shadow-emerald-950/50 hover:scale-105 active:scale-95"
-            >
-              <PhoneCall className="w-4 h-4 fill-current" />
-              <span>Make a Voice Call Now</span>
-            </Link>
+              {/* Dynamic Animated Frequency Equalizer */}
+              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/70 space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-zinc-400 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Live Spoken Dialogue</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-amber-400 font-semibold">
+                    Turn {simulatedTurnIndex + 1} of 5
+                  </span>
+                </div>
 
-            <Link
-              href="/campaigns"
-              className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-zinc-100 border border-zinc-700/80 font-semibold text-sm transition-all hover:scale-105 active:scale-95"
-            >
-              <Radio className="w-4 h-4 text-emerald-400" />
-              <span>Launch Bulk Phone Calls</span>
-            </Link>
+                {/* Animated Audio Equalizer Bars */}
+                <div className="flex items-center justify-center gap-1 h-12 py-1">
+                  {[24, 40, 18, 36, 48, 22, 38, 52, 28, 44, 32, 20, 46, 30, 16, 38, 24].map((h, i) => (
+                    <div
+                      key={i}
+                      style={{ height: `${h}%` }}
+                      className="w-1.5 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full animate-pulse"
+                    />
+                  ))}
+                </div>
 
-            <div className="flex items-center gap-2 text-xs text-zinc-400 px-3 py-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Works with any regular Jio/Airtel SIM or Twilio</span>
+                {/* Live Dialogue Bubble */}
+                <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 leading-relaxed min-h-[58px] flex items-center">
+                  <span className="font-semibold text-emerald-400 mr-2 shrink-0">
+                    {SIMULATED_DIALOGUE[simulatedTurnIndex].speaker}:
+                  </span>
+                  <span>"{SIMULATED_DIALOGUE[simulatedTurnIndex].text}"</span>
+                </div>
+              </div>
+
+              {/* Interactive Audio Stepper Buttons */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold block px-1">
+                  Click to Test Conversation Steps:
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    onClick={() => handleTriggerSimulatedDialogue(0)}
+                    className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-300 font-medium text-center transition"
+                  >
+                    1. Greeting
+                  </button>
+                  <button
+                    onClick={() => handleTriggerSimulatedDialogue(1)}
+                    className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-300 font-medium text-center transition"
+                  >
+                    2. Query
+                  </button>
+                  <button
+                    onClick={() => handleTriggerSimulatedDialogue(2)}
+                    className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-300 font-medium text-center transition"
+                  >
+                    3. Booking
+                  </button>
+                </div>
+              </div>
+
+              {/* Link into Live Call */}
+              <Link
+                href="/call"
+                className="w-full py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold text-center flex items-center justify-center gap-2 transition"
+              >
+                <span>Speak to AI Live in Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Subtle decorative glowing corner accent */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
+        {/* Ambient background blur */}
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
       </section>
 
-      {/* 2. INTERACTIVE VOICE AGENT SHOWCASE: Hear them speak */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* 2. INTERACTIVE VOICE AGENT SHOWCASE: Hear real Indian voices speak */}
+      <section className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
           <div>
-            <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                MULTILINGUAL VOICE FACTORY
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                24KHZ HD NEURAL
+              </span>
+            </div>
+            <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-400" />
               <span>Ready-To-Use Indian Voice Receptionists</span>
             </h2>
-            <p className="text-xs text-zinc-400">
-              Click any agent to listen to their voice and greeting script
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Click any agent to listen to their voice script, test emotional cadence, and launch immediate calls.
             </p>
           </div>
+
           <Link
             href="/agents"
-            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
+            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 transition"
           >
-            <span>Customize All Scripts & Prompts</span>
+            <span>Visual Call Flow Canvas</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 5 Persona Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {PERSONA_DEMOS.map((persona) => {
             const Icon = persona.icon;
             const isSelected = activePersona.id === persona.id;
@@ -225,47 +505,54 @@ export default function DashboardPage() {
               <div
                 key={persona.id}
                 onClick={() => setActivePersona(persona)}
-                className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? 'bg-zinc-900/90 border-emerald-500/60 shadow-xl shadow-emerald-950/20 ring-1 ring-emerald-500/30'
+                    ? 'bg-zinc-900/90 border-emerald-500/60 shadow-xl shadow-emerald-950/30 ring-1 ring-emerald-500/30'
                     : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
                         isSelected
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-4 h-4" />
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 font-mono">
                       {persona.langTag}
                     </span>
                   </div>
 
-                  <h3 className="font-bold text-sm text-zinc-100">{persona.name}</h3>
-                  <p className="text-xs text-emerald-400/90 font-medium mt-0.5">
+                  <span className="text-[10px] text-amber-400/90 font-mono font-medium block">
+                    {persona.industry}
+                  </span>
+                  <h3 className="font-bold text-sm text-zinc-100 mt-0.5 leading-snug">
+                    {persona.name}
+                  </h3>
+                  <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
                     {persona.role}
                   </p>
 
-                  <p className="text-xs text-zinc-400 italic mt-3 bg-zinc-950/70 p-3 rounded-xl border border-zinc-800/70 line-clamp-3">
+                  <p className="text-[11px] text-zinc-400 italic mt-3 bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/70 line-clamp-3 leading-relaxed">
                     {persona.greetingText}
                   </p>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-zinc-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-zinc-400">{persona.accent}</span>
+                <div className="pt-3.5 mt-3.5 border-t border-zinc-800/80 flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-400 truncate max-w-[80px]">
+                    {persona.accent.split(' ')[0]}
+                  </span>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePlaySample(persona);
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition ${
                       isSelected && isPlayingPreview
                         ? 'bg-emerald-500 text-zinc-950 font-bold'
                         : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
@@ -279,7 +566,7 @@ export default function DashboardPage() {
                     ) : (
                       <>
                         <Volume2 className="w-3 h-3" />
-                        <span>Hear Voice</span>
+                        <span>Listen</span>
                       </>
                     )}
                   </button>
@@ -290,52 +577,90 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* 3. THREE SIMPLE STEPS: How any person uses Bizora Voice */}
-      <section className="p-6 md:p-8 rounded-3xl bg-zinc-900/50 border border-zinc-800/80 space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-zinc-100">
-            How Simple It Is — 3 Steps For Any Business
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            No complex setup, no developer skills required.
-          </p>
+      {/* 3. INTERACTIVE ARCHITECTURE PIPELINE: The Technical Powerhouse */}
+      <section className="p-6 md:p-8 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 space-y-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-semibold mb-1">
+              SELF-HOSTED STACK • ZERO CLOUD LOCK-IN
+            </div>
+            <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-400" />
+              <span>Full-Duplex Real-Time Telephony Architecture</span>
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Click each stage to inspect latency metrics, inference engines, and local hardware execution.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-950 p-2 rounded-xl border border-zinc-800">
+            <span className="text-emerald-400 font-bold">Total Latency:</span>
+            <span>~340ms (Sub-second turnaround)</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 space-y-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center font-bold text-sm">
-              1
-            </div>
-            <h3 className="font-bold text-sm text-zinc-100">Choose Your AI Assistant</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Select your language (Marathi, Hindi, Gujarati, or English). Give your assistant a name and specify your business details (hotel room rates, clinic timings, or mandi products).
-            </p>
-          </div>
+        {/* 5-Stage Stepper Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          {PIPELINE_STAGES.map((stage) => {
+            const Icon = stage.icon;
+            const isSelected = selectedPipelineStage.id === stage.id;
+            return (
+              <button
+                key={stage.id}
+                onClick={() => setSelectedPipelineStage(stage)}
+                className={`p-4 rounded-2xl border text-left transition-all ${
+                  isSelected
+                    ? 'bg-zinc-950 border-emerald-500/60 shadow-lg shadow-emerald-950/30'
+                    : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      isSelected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    {stage.latency}
+                  </span>
+                </div>
+                <h4 className="font-bold text-xs text-zinc-200">{stage.name}</h4>
+                <p className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate">{stage.tech}</p>
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 space-y-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center font-bold text-sm">
-              2
+        {/* Detailed Stage Deep-Dive Card */}
+        <div className="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+            <div>
+              <span className="text-xs font-mono font-bold text-amber-400 uppercase">
+                Active Stage Inspector
+              </span>
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2 mt-0.5">
+                {selectedPipelineStage.name} — {selectedPipelineStage.tech}
+              </h3>
             </div>
-            <h3 className="font-bold text-sm text-zinc-100">Upload Numbers or Receive Inbound</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Upload an Excel sheet of customer numbers to call them automatically, or forward your incoming business calls directly to your AI receptionist.
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 space-y-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center font-bold text-sm">
-              3
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <span className="text-zinc-400">
+                Stage Latency: <strong className="text-emerald-400">{selectedPipelineStage.latency}</strong>
+              </span>
+              <span className="text-zinc-400">
+                Platform Markup: <strong className="text-emerald-400">{selectedPipelineStage.cost}</strong>
+              </span>
             </div>
-            <h3 className="font-bold text-sm text-zinc-100">AI Speaks & Records Everything</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              The AI converses naturally, answers questions, books slots, and emails you a complete written transcript with call recordings.
-            </p>
           </div>
+          <p className="text-xs text-zinc-300 leading-relaxed max-w-3xl">
+            {selectedPipelineStage.description}
+          </p>
         </div>
       </section>
 
-      {/* 4. INTERACTIVE CLOUD COST CALCULATOR: The Ultimate Eye-Opener */}
-      <section className="p-6 md:p-8 rounded-3xl bg-zinc-900/90 border border-emerald-500/30 shadow-xl space-y-6">
+      {/* 4. INTERACTIVE CLOUD COST CALCULATOR: The Financial Eye-Opener */}
+      <section className="p-6 md:p-8 rounded-3xl bg-zinc-900/90 border border-emerald-500/30 shadow-2xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
@@ -353,7 +678,7 @@ export default function DashboardPage() {
 
           <span className="text-xs font-bold text-emerald-400 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 w-fit">
             <Check className="w-3.5 h-3.5" />
-            <span>99.8% Savings Retained</span>
+            <span>99.8% Cost Savings Retained</span>
           </span>
         </div>
 
@@ -395,7 +720,7 @@ export default function DashboardPage() {
                 Vaani Voice (Monthly)
               </span>
               <div className="text-2xl font-extrabold text-emerald-400">
-                ₹{bizoraMonthlyTotal.toLocaleString()}
+                ₹{vaaniMonthlyTotal.toLocaleString()}
               </div>
               <p className="text-[11px] text-emerald-400/90 pt-1">
                 ₹0 AI inference + ₹299 Jio Unlimited Calling SIM
@@ -418,7 +743,88 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* 5. QUICK POWER ACTIONS: 4 Big Tiles */}
+      {/* 5. VAPI VS VAANI VOICE: Side-By-Side Comparison Matrix */}
+      <section className="p-6 md:p-8 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-amber-400" />
+              <span>Enterprise Telephony Comparison: Vapi vs Vaani Voice</span>
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Why Indian enterprises choose self-hosted sovereign voice infrastructure over US cloud wrappers.
+            </p>
+          </div>
+          <Link
+            href="/campaigns"
+            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
+          >
+            <span>Explore Bulk Dialer</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-zinc-800 text-zinc-400 font-mono uppercase">
+                <th className="py-3 px-4">Capability</th>
+                <th className="py-3 px-4 text-emerald-400 font-bold">Vaani Voice (100% Self-Hosted)</th>
+                <th className="py-3 px-4 text-amber-400 font-bold">Vapi.ai (US Cloud SaaS)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
+              <tr>
+                <td className="py-3 px-4 font-semibold text-zinc-200">Bulk Outbound Calling</td>
+                <td className="py-3 px-4 text-emerald-400 font-semibold">
+                  100% Free & Unlimited on your own server
+                </td>
+                <td className="py-3 px-4 text-red-400/90">
+                  Locked behind expensive tier ($500+/mo) + per-min markup
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 px-4 font-semibold text-zinc-200">Recipient Phone Pre-Verification</td>
+                <td className="py-3 px-4 text-emerald-400 font-semibold">
+                  Zero OTP requirement. Dials any regular Indian mobile directly
+                </td>
+                <td className="py-3 px-4 text-red-400/90">
+                  Blocks outbound calling unless recipient verifies OTP
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 px-4 font-semibold text-zinc-200">Twilio Number Import (BYOT)</td>
+                <td className="py-3 px-4 text-emerald-400 font-semibold">
+                  1-Click direct import of existing Twilio landlines/toll-free
+                </td>
+                <td className="py-3 px-4 text-zinc-400">
+                  Requires custom enterprise billing contracts
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 px-4 font-semibold text-zinc-200">Regional Indic Voices</td>
+                <td className="py-3 px-4 text-emerald-400 font-semibold">
+                  Native Marathi, Hindi, Gujarati, Tamil (24kHz HD Neural)
+                </td>
+                <td className="py-3 px-4 text-zinc-400">
+                  Limited; requires costly third-party ElevenLabs API keys
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 px-4 font-semibold text-zinc-200">Per-Minute Platform Markup</td>
+                <td className="py-3 px-4 text-emerald-400 font-mono font-bold">
+                  ₹0.00 / Free (100% Sovereign)
+                </td>
+                <td className="py-3 px-4 text-zinc-400 font-mono">
+                  \$0.07 to \$0.20 per minute (~₹6 to ₹18/min)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 6. QUICK POWER ACTIONS: 4 Big Core Feature Tiles */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
           href="/call"
@@ -430,7 +836,7 @@ export default function DashboardPage() {
             </div>
             <h3 className="font-bold text-sm text-zinc-100">Live Voice Studio</h3>
             <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-              Speak into your microphone and test the AI live with zero lag.
+              Speak into your microphone and test the AI live with zero latency.
             </p>
           </div>
           <span className="text-xs font-semibold text-emerald-400 mt-4 flex items-center gap-1">
@@ -459,20 +865,20 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/outreach"
+          href="/numbers"
           className="p-5 rounded-2xl bg-zinc-900/80 border border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-850 transition-all group flex flex-col justify-between"
         >
           <div>
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <MailCheck className="w-5 h-5" />
+              <Hash className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-sm text-zinc-100">Voice Notes & WhatsApp</h3>
+            <h3 className="font-bold text-sm text-zinc-100">Twilio Import & GSM</h3>
             <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-              Send studio-quality Marathi/Hindi voice recordings directly.
+              Connect local 4G VoLTE SIMs or import US/UK Twilio numbers in 1 click.
             </p>
           </div>
           <span className="text-xs font-semibold text-amber-400 mt-4 flex items-center gap-1">
-            <span>Send Voice Note</span>
+            <span>Manage Numbers</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
           </span>
         </Link>
@@ -497,7 +903,7 @@ export default function DashboardPage() {
         </Link>
       </section>
 
-      {/* 6. RECENT CALL ACTIVITY */}
+      {/* 7. RECENT CALL ACTIVITY */}
       <section className="bg-zinc-900/80 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-xl">
         <div className="flex items-center justify-between p-5 border-b border-zinc-800/80">
           <div className="flex items-center gap-2.5">
