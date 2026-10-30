@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start"
+    "start": "next start",
+    "test:perf": "k6 run ../tests/performance/k6/smoke-test.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",

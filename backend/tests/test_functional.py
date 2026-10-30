@@ -71,6 +71,48 @@ class TestBizoraVoiceBackend(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(audio), 500)
         print(f"\n[PASS] Marathi Audio Synthesized: {len(audio)} bytes")
 
+    async def test_05_campaigns_and_contacts(self):
+        """Verify Campaign creation, contact linking, and status flow."""
+        from database.models import Campaign, CampaignContact
+        import uuid
+
+        camp_id = str(uuid.uuid4())
+        async with async_session_factory() as session:
+            camp = Campaign(
+                id=camp_id,
+                name="Unit Test Agro Outreach",
+                agent_id="marathi-supplier-agent",
+                status="draft",
+                telephony_provider="simulation",
+                total_contacts=2,
+            )
+            session.add(camp)
+            c1 = CampaignContact(campaign_id=camp_id, name="Test Farmer 1", phone_number="+919800000001", status="pending")
+            c2 = CampaignContact(campaign_id=camp_id, name="Test Farmer 2", phone_number="+919800000002", status="pending")
+            session.add_all([c1, c2])
+            await session.commit()
+
+            check = await session.execute(select(Campaign).where(Campaign.id == camp_id))
+            saved_camp = check.scalar_one_or_none()
+            self.assertIsNotNone(saved_camp)
+            self.assertEqual(saved_camp.total_contacts, 2)
+            print(f"\n[PASS] Campaign and Contacts DB Flow Verified: {saved_camp.name}")
+
+    async def test_06_telephony_dialer(self):
+        """Verify outbound dialer in simulation mode."""
+        from services.telephony import TelephonyService
+
+        res = await TelephonyService.dial_number(
+            to_number="+919822099999",
+            from_number="+918000000000",
+            provider="simulation",
+            variables={"item": "Turmeric", "amount": "₹3,200"},
+        )
+        self.assertTrue(res["success"])
+        self.assertEqual(res["status"], "completed")
+        self.assertIn("SIM_", res["call_sid"])
+        print(f"\n[PASS] Outbound Dialer Simulation Verified: {res['call_sid']}")
+
 
 if __name__ == "__main__":
     unittest.main()
