@@ -7,9 +7,11 @@ import {
   getCalls,
   getHealth,
   getStats,
+  getStoredUser,
   Agent,
   Call,
   PlatformStats,
+  AuthUser,
 } from '@/lib/api';
 import {
   Bot,
@@ -189,6 +191,7 @@ const PIPELINE_STAGES: PipelineStage[] = [
 ];
 
 export default function DashboardPage() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
   const [stats, setStats] = useState<PlatformStats | null>(null);
@@ -223,6 +226,7 @@ export default function DashboardPage() {
   ];
 
   useEffect(() => {
+    setCurrentUser(getStoredUser());
     Promise.all([
       getAgents().catch(() => []),
       getCalls().catch(() => []),
@@ -283,9 +287,36 @@ export default function DashboardPage() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-            0% VAPI CLOUD MARKUP
-          </span>
+          {currentUser ? (
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-zinc-300 font-medium hidden sm:inline">
+                Welcome back, <strong className="text-emerald-400">{currentUser.name}</strong>
+              </span>
+              <Link
+                href="/agents"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs transition border border-zinc-700/80 shadow-sm"
+              >
+                <span>Voice Studio</span>
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+              </Link>
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-xs font-semibold text-zinc-300 hover:text-zinc-100 transition px-2 py-1"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/login?mode=signup"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition shadow-sm shadow-emerald-950/40 hover:scale-105 active:scale-95"
+              >
+                <span>Get Started for Free</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -317,27 +348,32 @@ export default function DashboardPage() {
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <Link
+                href="/login?mode=signup"
+                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-sm transition-all shadow-xl shadow-emerald-950/60 hover:scale-105 active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 fill-zinc-950" />
+                <span>Get Started for Free</span>
+              </Link>
+
+              <Link
                 href="/call"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-lg shadow-emerald-950/50 hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-850 text-zinc-100 border border-zinc-700/80 font-bold text-sm transition-all hover:scale-105 active:scale-95"
               >
-                <PhoneCall className="w-4 h-4 fill-current" />
-                <span>Test Live Voice Call</span>
+                <PhoneCall className="w-4 h-4 text-emerald-400" />
+                <span>Test Live Call</span>
               </Link>
 
               <Link
-                href="/campaigns"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-zinc-100 border border-zinc-700/80 font-semibold text-sm transition-all hover:scale-105 active:scale-95"
+                href="/login"
+                className="inline-flex items-center gap-2 px-4 py-3.5 rounded-2xl bg-zinc-950 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 border border-zinc-800 font-medium text-xs transition-all hover:border-zinc-700"
               >
-                <Radio className="w-4 h-4 text-emerald-400" />
-                <span>Launch Bulk Phone Dialer</span>
-              </Link>
-
-              <Link
-                href="/numbers"
-                className="inline-flex items-center gap-2 px-4 py-3.5 rounded-2xl bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800 font-medium text-xs transition-all"
-              >
-                <Hash className="w-3.5 h-3.5 text-amber-400" />
-                <span>Twilio BYOT & GSM Numbers</span>
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                </svg>
+                <span>Continue with Google</span>
               </Link>
             </div>
 

@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
+import { getStoredUser, logoutUser, AuthUser } from '@/lib/api';
 import {
   LayoutDashboard,
   PhoneCall,
@@ -16,6 +17,9 @@ import {
   ShieldCheck,
   CheckCircle2,
   Hash,
+  LogIn,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,11 +39,21 @@ const NAV_ITEMS = [
 
 export function Sidebar({ onOpenCopilot }: SidebarProps) {
   const pathname = usePathname();
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setCurrentUser(getStoredUser());
+  }, [pathname]);
+
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUser(null);
+  };
 
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-zinc-800/80 bg-zinc-950 p-4 shrink-0 justify-between select-none">
+      <aside className="hidden md:flex flex-col w-64 border-r border-zinc-800/80 bg-zinc-950 p-4 shrink-0 justify-between select-none overflow-y-auto">
         <div>
           {/* Brand Header with Precision Vector Logo */}
           <Link href="/" className="flex items-center px-2 mb-6 group cursor-pointer">
@@ -109,26 +123,69 @@ export function Sidebar({ onOpenCopilot }: SidebarProps) {
           </nav>
         </div>
 
-        {/* Footer Status Box */}
-        <div className="space-y-2 pt-4 border-t border-zinc-900">
-          <div className="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-xl text-xs space-y-1.5">
+        {/* User Account / Sign In Widget */}
+        <div className="space-y-2 pt-3 border-t border-zinc-900">
+          {currentUser ? (
+            <div className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 truncate">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
+                  {currentUser.avatar ? (
+                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    (currentUser.name || 'U')[0].toUpperCase()
+                  )}
+                </div>
+                <div className="truncate text-left">
+                  <div className="text-xs font-bold text-zinc-200 truncate flex items-center gap-1.5">
+                    <span>{currentUser.name}</span>
+                    <span className="text-[9px] font-mono text-emerald-400 px-1 rounded bg-emerald-500/10">PRO</span>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 truncate">{currentUser.email}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Sign Out"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/10 via-zinc-900 to-zinc-900 border border-emerald-500/25 hover:border-emerald-500/50 flex items-center justify-between transition group"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <LogIn className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-semibold text-zinc-200">Sign In / Register</div>
+                  <div className="text-[10px] text-zinc-400">Continue with Google</div>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                Free
+              </span>
+            </Link>
+          )}
+
+          {/* Footer Status Box */}
+          <div className="p-2.5 bg-zinc-900/40 border border-zinc-800/60 rounded-xl text-xs space-y-1">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-semibold text-zinc-200 text-xs">
+              <span className="flex items-center gap-1.5 font-semibold text-zinc-300 text-[11px]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 Zero Cloud Markup
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                Free
+              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded font-mono">
+                100% Free
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400 leading-tight">
-              Runs 100% on local infrastructure. Never pay \$0.07/min Vapi cloud bills.
+            <p className="text-[10px] text-zinc-500 leading-tight">
+              Runs 100% on self-hosted stack. Zero Vapi platform fees.
             </p>
-          </div>
-
-          <div className="flex items-center justify-between px-2 text-[10px] text-zinc-500">
-            <span>Marathi • Hindi • Gujarati</span>
-            <span className="text-emerald-400 font-medium">Ready</span>
           </div>
         </div>
       </aside>

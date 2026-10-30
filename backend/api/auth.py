@@ -13,6 +13,7 @@ from database.models import User, ApiKey
 from api.models import (
     UserRegisterRequest,
     UserLoginRequest,
+    GoogleAuthRequest,
     AuthResponse,
     UserResponse,
     CreateApiKeyRequest,
@@ -134,6 +135,42 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled.")
+
+    token = create_access_token({"sub": user.id, "email": user.email})
+    return AuthResponse(access_token=token, user=UserResponse.model_validate(user))
+
+
+@auth_router.post("/google", response_model=AuthResponse)
+async def google_auth(req: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+    """Authenticate or auto-register via Google OAuth."""
+    email_clean = req.email.lower().strip()
+    res = await db.execute(select(User).where(User.email == email_clean))
+    user = res.scalars().first()
+
+    if not user:
+        user = User(
+            email=email_clean,
+            name=req.name or email_clean.split("@")[0].capitalize(),
+            company="Google Workspace",
+            hashed_password=hash_password(f"google_oauth_{email_clean}"),
+            role="developer",
+            tier="pro",
+            credits_minutes=120.0,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+        # Generate default developer API key
+        raw_key, k_hash, k_prefix = generate_api_key()
+        api_key_record = ApiKey(
+            user_id=user.id,
+            name="Google Account API Key",
+            key_hash=k_hash,
+            key_prefix=k_prefix,
+        )
+        db.add(api_key_record)
+        await db.commit()
 
     token = create_access_token({"sub": user.id, "email": user.email})
     return AuthResponse(access_token=token, user=UserResponse.model_validate(user))

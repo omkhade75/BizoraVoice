@@ -509,7 +509,7 @@ export default function CampaignsPage() {
                       {selectedCampaign.status}
                     </span>
                     <span className="text-[11px] text-zinc-500 font-mono">
-                      Route: {selectedCampaign.telephony_provider.toUpperCase()}
+                      Route: {(selectedCampaign.telephony_provider || 'GSM').toUpperCase()}
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-zinc-100">{selectedCampaign.name}</h2>
@@ -568,14 +568,14 @@ export default function CampaignsPage() {
                 <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
                   <div className="text-[11px] text-zinc-400 font-medium">Total Duration</div>
                   <div className="text-xl font-bold text-zinc-100 mt-1 font-mono">
-                    {Math.floor(selectedCampaign.total_duration_sec / 60)}m {selectedCampaign.total_duration_sec % 60}s
+                    {Math.floor((selectedCampaign.total_duration_sec || 0) / 60)}m {(selectedCampaign.total_duration_sec || 0) % 60}s
                   </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                   <div className="text-[11px] text-emerald-400 font-medium">Vapi Bill Saved</div>
                   <div className="text-xl font-bold text-emerald-300 mt-1">
-                    ₹{selectedCampaign.cost_saved_inr}
+                    ₹{selectedCampaign.cost_saved_inr || 0}
                   </div>
                 </div>
               </div>
@@ -622,7 +622,7 @@ export default function CampaignsPage() {
 
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                   {selectedCampaign.contacts && selectedCampaign.contacts.length > 0 ? (
-                    selectedCampaign.contacts.map((c) => (
+                    selectedCampaign.contacts.map((c: any) => (
                       <div
                         key={c.id}
                         className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800/80 hover:border-zinc-700 transition space-y-2"

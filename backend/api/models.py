@@ -20,6 +20,13 @@ class UserLoginRequest(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=120)
+    name: str = Field(..., min_length=1)
+    avatar: Optional[str] = None
+    credential: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
