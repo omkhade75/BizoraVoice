@@ -144,10 +144,14 @@ export function CallHistory({ calls }: CallHistoryProps) {
                             isUser ? 'text-emerald-200' : 'text-zinc-500'
                           }`}
                         >
-                          {new Date(msg.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {(() => {
+                            if (!msg.timestamp) return '';
+                            if (/^\d{1,2}:\d{2}/.test(msg.timestamp)) return msg.timestamp;
+                            const d = new Date(msg.timestamp);
+                            return isNaN(d.getTime())
+                              ? msg.timestamp
+                              : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          })()}
                         </span>
                       </div>
                       {isUser && (

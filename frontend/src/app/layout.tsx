@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppShell } from '@/components/AppShell';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Bizora Voice | Self-Hosted AI Telephony & Voice Platform',
@@ -18,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full bg-zinc-950 text-zinc-100">
-      <body className={`${inter.className} min-h-full flex bg-zinc-950 text-zinc-100 antialiased`}>
+      <body className="min-h-full flex bg-zinc-950 text-zinc-100 antialiased font-sans">
         <AppShell>{children}</AppShell>
       </body>
     </html>
