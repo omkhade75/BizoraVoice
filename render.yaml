@@ -24,7 +24,22 @@ services:
           name: bizora-voice-backend
           property: host
 
-  # ── Bizora Voice Frontend (Next.js / Node.js) ────────────────────────
+  # ── Vaani Voice Static Frontend (Instant Global CDN, Zero Cold Starts) ───
+  - type: static
+    name: bizora-voice-static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./out
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: bizora-voice-backend
+          property: host
+
+  # ── Vaani Voice Node.js Web Frontend (Full App Engine) ───────────────
   - type: web
     name: bizora-voice-frontend
     runtime: node

@@ -15,8 +15,9 @@
 
 | Component | Target URL | Description |
 |:---|:---|:---|
-| **🌐 Production App** | [https://bizora-voice.onrender.com](https://bizora-voice.onrender.com) | Next.js 16 App Router UI with Live Call Studio & Dialer |
-| **🔐 Auth & Signup Portal** | [https://bizora-voice.onrender.com/login](https://bizora-voice.onrender.com/login) | Google OAuth & Email Authentication with Session Sync |
+| **⚡ Global Edge CDN (Static Site)** | [https://bizora-voice-static.onrender.com](https://bizora-voice-static.onrender.com) | Zero cold-start instant global CDN deployment (`output: 'export'`) |
+| **🌐 Production App (Web Service)** | [https://bizora-voice.onrender.com](https://bizora-voice.onrender.com) | Next.js 16 App Router UI with Live Call Studio & Dialer |
+| **🔐 Auth & Signup Portal** | [https://bizora-voice-static.onrender.com/login/](https://bizora-voice-static.onrender.com/login/) | Google OAuth & Email Authentication with Session Sync |
 | **⚡ Backend Core (REST & WS)** | [https://bizora-voice-backend.onrender.com](https://bizora-voice-backend.onrender.com) | FastAPI High-Throughput Voice Orchestration Service |
 | **📖 Interactive API Docs** | [https://bizora-voice-backend.onrender.com/docs](https://bizora-voice-backend.onrender.com/docs) | Swagger UI with OpenAPI 3.1 Spec |
 | **📦 GitHub Repository** | [https://github.com/omkhade75/BizoraVoice.git](https://github.com/omkhade75/BizoraVoice.git) | Source code, test suites, and Docker/Render configs |
