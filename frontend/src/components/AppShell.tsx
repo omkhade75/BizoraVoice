@@ -1,12 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { CopilotDrawer } from '@/components/CopilotDrawer';
 import { Sparkles } from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [copilotOpen, setCopilotOpen] = useState(false);
+
+  // Standalone public pages (landing, login, signup) render full-width without internal dashboard sidebar
+  const isPublicPage =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/login/' ||
+    pathname === '/signup' ||
+    pathname === '/signup/';
+
+  if (isPublicPage) {
+    return (
+      <div className="w-full min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full min-h-screen bg-zinc-950 text-zinc-100">
