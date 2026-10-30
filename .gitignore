@@ -1,0 +1,35 @@
+# Node.js dependencies & builds
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+.playwright-mcp/
+
+# Python virtual environment & cache
+venv/
+backend/venv/
+__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+
+# Local databases & logs
+*.db
+backend/bizvoice.db
+*.log
+backend/storage/voicenotes/*.wav
+!backend/storage/voicenotes/.gitkeep
+
+# Environment variables & secrets
+.env
+.env.local
+.env.production
+backend/.env
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

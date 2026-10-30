@@ -1,0 +1,38 @@
+# BizVoice Backend Dependencies
+# Python 3.13 compatible
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+websockets==14.1
+python-multipart==0.0.19
+
+# Async HTTP client (for Ollama)
+httpx==0.28.1
+
+# Data validation & settings
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+aiosqlite==0.20.0
+
+# Speech-to-Text
+faster-whisper==1.1.0
+
+# Text-to-Speech
+kokoro==0.9.4
+edge-tts>=7.0.0
+soundfile==0.13.1
+
+# Voice Activity Detection & Audio
+torch==2.5.1
+torchaudio==2.5.1
+numpy==2.2.1
+
+# CORS
+python-dotenv==1.0.1
+
+# Logging
+structlog==24.4.0
