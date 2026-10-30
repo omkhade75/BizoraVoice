@@ -31,8 +31,9 @@ torch==2.5.1
 torchaudio==2.5.1
 numpy==2.2.1
 
-# CORS
+# CORS & Security
 python-dotenv==1.0.1
+PyJWT==2.10.1
 
 # Logging
 structlog==24.4.0
