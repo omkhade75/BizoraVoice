@@ -7,7 +7,20 @@ import { Transcript } from './Transcript';
 import { StatusBadge } from './StatusBadge';
 import { formatDuration } from '@/lib/utils';
 import { Agent, getAgents } from '@/lib/api';
-import { Phone, PhoneOff, Mic, MicOff, AlertCircle, Sparkles, Layers } from 'lucide-react';
+import {
+  Phone,
+  PhoneOff,
+  Mic,
+  MicOff,
+  AlertCircle,
+  Sparkles,
+  Layers,
+  Building2,
+  Wheat,
+  Stethoscope,
+  Truck,
+  CheckCircle2,
+} from 'lucide-react';
 
 export function CallPanel() {
   const {
@@ -50,20 +63,20 @@ export function CallPanel() {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-6xl mx-auto items-start">
       {/* Left Column: Interactive Call Stage */}
       <div className="lg:col-span-6 flex flex-col gap-4">
-        {/* Call Box */}
-        <div className="bg-zinc-900/90 rounded-2xl border border-zinc-800 p-6 md:p-8 flex flex-col items-center justify-between min-h-[460px] shadow-xl relative overflow-hidden">
+        {/* Main Phone Call Card */}
+        <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 rounded-3xl border border-zinc-800/90 p-6 md:p-8 flex flex-col items-center justify-between min-h-[480px] shadow-2xl relative overflow-hidden">
           {/* Top Info Bar */}
           <div className="w-full flex items-center justify-between">
             <StatusBadge state={callState} isMuted={isMuted} />
             {isInCall && (
-              <span className="font-mono text-xs font-semibold text-emerald-400 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-800/50 flex items-center gap-1.5">
+              <span className="font-mono text-xs font-semibold text-emerald-400 bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-800/60 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 {formatDuration(duration)}
               </span>
             )}
           </div>
 
-          {/* Central Visualizer Area */}
+          {/* Central Waveform Visualizer */}
           <div className="w-full my-auto flex flex-col items-center justify-center py-6">
             <AudioVisualizer
               userLevel={userLevel}
@@ -72,37 +85,46 @@ export function CallPanel() {
               isMuted={isMuted}
             />
 
-            <p className="text-xs text-zinc-400 mt-3 text-center max-w-sm leading-relaxed">
-              {isInCall
-                ? callState === 'listening'
-                  ? 'Listening to your microphone... Speak naturally'
-                  : callState === 'thinking'
-                  ? 'Thinking & generating neural voice chunk...'
-                  : 'Assistant speaking in real-time'
-                : selectedAgent
-                ? `Ready to talk with ${selectedAgent.name} (${selectedAgent.language.toUpperCase()})`
-                : 'Select an agent below and tap Start Voice Call'}
-            </p>
+            <div className="text-center mt-4 max-w-sm space-y-1">
+              <h4 className="font-bold text-sm text-zinc-100">
+                {isInCall
+                  ? callState === 'listening'
+                    ? 'Listening... Speak in Marathi, Hindi, or English'
+                    : callState === 'thinking'
+                    ? 'AI is formulating answer...'
+                    : 'AI Speaking in Real-Time'
+                  : selectedAgent
+                  ? selectedAgent.name
+                  : 'Ready to Call'}
+              </h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {isInCall
+                  ? 'Works like a real telephone call with natural voice turn-taking and zero delay.'
+                  : selectedAgent
+                  ? `Configured in ${selectedAgent.language.toUpperCase()} (${selectedAgent.voice.split('-')[2] || selectedAgent.voice} voice)`
+                  : 'Select an agent below and tap Start Call.'}
+              </p>
+            </div>
           </div>
 
           {/* Error Notice */}
           {error && (
-            <div className="w-full mb-4 p-3 bg-rose-950/40 border border-rose-800/60 rounded-xl flex items-center gap-2 text-rose-300 text-xs">
+            <div className="w-full mb-4 p-3.5 bg-rose-950/50 border border-rose-800/70 rounded-2xl flex items-center gap-2.5 text-rose-300 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Controls Bar */}
-          <div className="w-full flex items-center justify-center gap-4 pt-4 border-t border-zinc-800">
+          {/* Call Controls Bar */}
+          <div className="w-full flex items-center justify-center gap-4 pt-5 border-t border-zinc-800/80">
             {isInCall && (
               <button
                 type="button"
                 onClick={toggleMute}
-                className={`p-3.5 rounded-full border transition-all ${
+                className={`p-4 rounded-full border transition-all ${
                   isMuted
-                    ? 'bg-amber-950/40 text-amber-300 border-amber-800/50 hover:bg-amber-900/50'
-                    : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+                    ? 'bg-amber-950/50 text-amber-300 border-amber-800/60 hover:bg-amber-900/50'
+                    : 'bg-zinc-800/90 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
                 }`}
                 title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
               >
@@ -114,16 +136,16 @@ export function CallPanel() {
               <button
                 type="button"
                 onClick={handleStartCall}
-                className="flex items-center gap-2 px-8 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-lg shadow-emerald-950/40 hover:scale-105 active:scale-95"
+                className="flex items-center gap-2.5 px-9 py-4 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-sm transition-all shadow-xl shadow-emerald-950/60 hover:scale-105 active:scale-95"
               >
-                <Phone className="w-4 h-4" />
+                <Phone className="w-4 h-4 fill-current" />
                 <span>Start Voice Call</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={endCall}
-                className="flex items-center gap-2 px-8 py-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition-all shadow-lg shadow-rose-950/40 hover:scale-105 active:scale-95"
+                className="flex items-center gap-2.5 px-9 py-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-sm transition-all shadow-xl shadow-rose-950/60 hover:scale-105 active:scale-95"
               >
                 <PhoneOff className="w-4 h-4" />
                 <span>End Call</span>
@@ -132,30 +154,46 @@ export function CallPanel() {
           </div>
         </div>
 
-        {/* Agent Selector Card */}
-        <div className="bg-zinc-900/90 rounded-2xl border border-zinc-800 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+        {/* Quick Agent Persona Picker Cards */}
+        <div className="bg-zinc-900/80 rounded-2xl border border-zinc-800/80 p-4 shadow-sm space-y-3">
+          <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-amber-400" />
-              Active Voice Agent
-            </label>
-            <p className="text-[11px] text-zinc-500">
-              {selectedAgent?.system_prompt.slice(0, 48)}...
-            </p>
-          </div>
+              Switch AI Receptionist
+            </span>
+            <span className="text-[10px] text-zinc-500 font-normal">
+              Click to select
+            </span>
+          </label>
 
-          <select
-            disabled={isInCall}
-            value={selectedAgentId}
-            onChange={(e) => setSelectedAgentId(e.target.value)}
-            className="text-xs bg-zinc-950 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 font-medium focus:outline-none focus:border-emerald-500 disabled:opacity-50"
-          >
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name} ({agent.language.toUpperCase()} • {agent.voice.split('-')[2] || agent.voice})
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-2 gap-2">
+            {agents.map((agent) => {
+              const isSelected = selectedAgentId === agent.id;
+              return (
+                <button
+                  key={agent.id}
+                  disabled={isInCall}
+                  type="button"
+                  onClick={() => setSelectedAgentId(agent.id)}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    isSelected
+                      ? 'bg-zinc-800/90 border-emerald-500/50 shadow-sm text-zinc-100 ring-1 ring-emerald-500/30'
+                      : 'bg-zinc-950/60 border-zinc-800/70 text-zinc-400 hover:bg-zinc-850 hover:text-zinc-200'
+                  } disabled:opacity-50`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs truncate max-w-[120px]">{agent.name}</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-emerald-400 border border-zinc-700">
+                      {agent.language.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 mt-1 truncate">
+                    {agent.voice.split('-')[2] || agent.voice}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
