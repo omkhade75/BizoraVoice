@@ -1176,3 +1176,123 @@ export async function deleteCampaign(id: string): Promise<{ success: boolean }> 
   }
   return { success: true };
 }
+
+// ── Multi-Agent Squads & Swarm Workflows ────────────────────────────────────
+
+export interface SquadMember {
+  id: string;
+  name: string;
+  role: string;
+  language: string;
+  voice: string;
+  transferPhrase: string;
+  systemPrompt?: string;
+  greetingMessage?: string;
+}
+
+export interface Squad {
+  id: string;
+  name: string;
+  description: string;
+  leadAgent: string;
+  members: SquadMember[];
+  handoffPolicy: string;
+  activeCalls: number;
+}
+
+export const INITIAL_SQUADS: Squad[] = [
+  {
+    id: 'squad-inbound-triage',
+    name: 'Multilingual Inbound Customer Desk',
+    description: 'Front-desk triage bot that greets incoming callers, detects spoken language (Marathi, Hindi, or English), and transfers seamlessly without call drops.',
+    leadAgent: 'Receptionist Triage (Auto-Detect)',
+    activeCalls: 3,
+    handoffPolicy: 'Warm transfer with shared conversation context payload',
+    members: [
+      {
+        id: 'member-1',
+        name: 'Receptionist Triage',
+        role: 'Initial Greeter & Intent Classifier',
+        language: 'Marathi / Hindi / English',
+        voice: 'mr-IN-AarohiNeural',
+        transferPhrase: 'Let me connect you directly with our Marathi support specialist.',
+        systemPrompt: 'You are the front desk triage receptionist for Bizora Voice. Greet the caller warmly, identify their need or language, and inform them that you can transfer them to our Marathi supplier closer or billing specialist.',
+        greetingMessage: 'नमस्ते, बिझोरा व्हॉइस फ्रंट डेस्कवर आपले स्वागत आहे! मी तुम्हाला कशी मदत करू शकतो? आपण मराठी, हिंदी किंवा इंग्लिशमध्ये बोलू शकता.',
+      },
+      {
+        id: 'member-2',
+        name: 'Marathi Supplier Closer',
+        role: 'APMC Pricing & Wholesale Negotiations',
+        language: 'Marathi (मराठी)',
+        voice: 'mr-IN-ManoharNeural',
+        transferPhrase: 'I will transfer you to order logistics to finalize the truck freight.',
+        systemPrompt: 'You are a senior wholesale APMC vegetable/commodity trader in Maharashtra. You quote realistic wholesale prices for onions (कांदा - ₹24/kg), potatoes (बटाटा - ₹18/kg), and tomatoes. Offer bulk delivery terms in Marathi.',
+        greetingMessage: 'नमस्कार! मी कृषी आणि घाऊक बाजार specialist. सांगा, आज कोणत्या मालाचे दर आणि किती क्विंटलचा सौदा करायचा आहे?',
+      },
+      {
+        id: 'member-3',
+        name: 'Billing & Account Desk',
+        role: 'Payment links & Invoice inquiries',
+        language: 'Hindi & English',
+        voice: 'hi-IN-SwaraNeural',
+        transferPhrase: 'Transferring to payment verification.',
+        systemPrompt: 'You are the accounts and billing coordinator. You generate GST invoices, share UPI payment links, and confirm bank transfers for wholesale orders.',
+        greetingMessage: 'Welcome to Billing & Accounts. I can send your digital GST invoice via WhatsApp or SMS, and provide UPI QR for instant settlement.',
+      },
+    ],
+  },
+  {
+    id: 'squad-healthcare',
+    name: 'Dental & Hospital Patient Concierge',
+    description: 'Patient symptom intake desk that triages emergencies, schedules dentist appointments, and sends instant WhatsApp confirmation.',
+    leadAgent: 'Dr. Patil Front Desk',
+    activeCalls: 1,
+    handoffPolicy: 'Immediate transfer to on-call surgeon on emergency keywords',
+    members: [
+      {
+        id: 'member-4',
+        name: 'Clinic Receptionist',
+        role: 'General appointment intake',
+        language: 'Hindi / English',
+        voice: 'hi-IN-SwaraNeural',
+        transferPhrase: 'Connecting you with Dr. Patil care coordinator.',
+        systemPrompt: 'You are the receptionist at Dr. Patil Dental Clinic. Help patients book regular dental checkups, cleaning, and routine visits.',
+        greetingMessage: 'Dr. Patil Dental Clinic में आपका स्वागत है। क्या आप नया अपॉइंटमेंट बुक करना चाहते हैं या मौजूदा चेकअप के बारे में पूछना चाहते हैं?',
+      },
+      {
+        id: 'member-5',
+        name: 'Emergency Dental Triage',
+        role: 'Severe toothache & trauma assessment',
+        language: 'Hindi / Marathi',
+        voice: 'mr-IN-ManoharNeural',
+        transferPhrase: 'Escalating to doctor immediately.',
+        systemPrompt: 'You are an emergency dental triage officer. Assess pain level, bleeding, root canal emergencies, and schedule urgent priority slots.',
+        greetingMessage: 'इमर्जन्सी डेंटल ट्रियाज डेस्क. जर खूप दातदुखी किंवा रक्तस्त्राव असेल तर त्वरित सांगा, आम्ही तत्काळ डॉक्टरांची वेळ देतो.',
+      },
+    ],
+  },
+];
+
+export async function getSquads(): Promise<Squad[]> {
+  try {
+    const remote = await request<Squad[]>('/api/squads');
+    if (Array.isArray(remote) && remote.length > 0) return remote;
+  } catch {}
+
+  if (typeof window !== 'undefined') {
+    const raw = localStorage.getItem('bv_squads');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    localStorage.setItem('bv_squads', JSON.stringify(INITIAL_SQUADS));
+  }
+  return INITIAL_SQUADS;
+}
+
+export async function getSquadById(id: string): Promise<Squad | undefined> {
+  const squads = await getSquads();
+  return squads.find((s) => s.id === id);
+}

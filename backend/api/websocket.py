@@ -144,6 +144,33 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                                     logger.error(f"Error sending audio reply chunk: {e}")
                                     break
 
+                    elif msg_type in ("switch_agent", "transfer", "handoff"):
+                        agent_name = data.get("agent_name", "Specialist Agent")
+                        new_voice = data.get("voice")
+                        new_prompt = data.get("system_prompt")
+                        transfer_phrase = data.get("transfer_phrase", f"Connecting you with {agent_name}.")
+                        if new_voice:
+                            session.voice = new_voice
+                        if new_prompt:
+                            session.system_prompt = new_prompt
+                        logger.info(f"Squad live handoff: Switched active agent to '{agent_name}', voice '{new_voice}'")
+
+                        await pipeline.set_state(CallState.SPEAKING)
+                        session.add_message("assistant", transfer_phrase)
+                        await on_transcript_callback("assistant", f"🔄 [Warm Transfer to {agent_name}]: {transfer_phrase}", True)
+
+                        try:
+                            loop = asyncio.get_running_loop()
+                            handoff_audio = await loop.run_in_executor(
+                                None, tts_engine.synthesize, transfer_phrase, session.voice
+                            )
+                            if handoff_audio:
+                                await websocket.send_bytes(handoff_audio)
+                        except Exception as e:
+                            logger.error(f"Failed to synthesize handoff cue: {e}")
+
+                        await pipeline.set_state(CallState.LISTENING)
+
                     elif msg_type == "ping":
                         await send_json_safe({"type": "pong"})
 

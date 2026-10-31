@@ -178,7 +178,13 @@ export function useCall() {
     }
   }, []);
 
-  const startCall = useCallback(async (agentId?: string, agentLang?: string) => {
+  const startCall = useCallback(async (
+    agentId?: string,
+    agentLang?: string,
+    customPrompt?: string,
+    voice?: string,
+    greeting?: string
+  ) => {
     try {
       setError(null);
       setTranscript([]);
@@ -195,6 +201,9 @@ export function useCall() {
         },
         body: JSON.stringify({
           agent_id: agentId || null,
+          custom_system_prompt: customPrompt || null,
+          voice: voice || null,
+          greeting_message: greeting || null,
           gemini_api_key: localGeminiKey,
         }),
       });
@@ -223,6 +232,23 @@ export function useCall() {
       endCall();
     }
   }, [ws, audio, startSpeechRecognition]);
+
+  const transferAgent = useCallback((
+    agentName: string,
+    voice: string,
+    systemPrompt?: string,
+    transferPhrase?: string
+  ) => {
+    if (ws.isConnected) {
+      ws.sendJson({
+        type: 'transfer',
+        agent_name: agentName,
+        voice,
+        system_prompt: systemPrompt,
+        transfer_phrase: transferPhrase || `Transferring you to ${agentName}.`,
+      });
+    }
+  }, [ws]);
 
   const endCall = useCallback(() => {
     if (durationTimerRef.current) {
@@ -269,5 +295,7 @@ export function useCall() {
     startCall,
     endCall,
     toggleMute,
+    transferAgent,
+    sendJson: ws.sendJson,
   };
 }

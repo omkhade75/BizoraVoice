@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { TranscriptItem } from '@/hooks/useCall';
 import { CallState } from '@/hooks/useWebSocket';
 import { formatTime } from '@/lib/utils';
-import { Bot, Sparkles, User } from 'lucide-react';
+import { Bot, Sparkles, User, PhoneForwarded } from 'lucide-react';
 
 interface TranscriptProps {
   transcript: TranscriptItem[];
@@ -43,6 +43,21 @@ export function Transcript({ transcript, callState }: TranscriptProps) {
           </div>
         ) : (
           transcript.map((item) => {
+            if (item.text.startsWith('🔄 [Warm Transfer')) {
+              return (
+                <div
+                  key={item.id}
+                  className="w-full my-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono flex items-center justify-between shadow-xs animate-fadeIn"
+                >
+                  <div className="flex items-center gap-2">
+                    <PhoneForwarded className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                    <span className="font-semibold text-text-primary">{item.text}</span>
+                  </div>
+                  <span className="text-[10px] text-text-tertiary">{formatTime(item.timestamp)}</span>
+                </div>
+              );
+            }
+
             const isUser = item.role === 'user';
             return (
               <div

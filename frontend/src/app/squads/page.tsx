@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -9,88 +9,7 @@ import {
   Bot,
   PhoneForwarded,
 } from 'lucide-react';
-
-interface SquadMember {
-  id: string;
-  name: string;
-  role: string;
-  language: string;
-  voice: string;
-  transferPhrase: string;
-}
-
-interface Squad {
-  id: string;
-  name: string;
-  description: string;
-  leadAgent: string;
-  members: SquadMember[];
-  handoffPolicy: string;
-  activeCalls: number;
-}
-
-const INITIAL_SQUADS: Squad[] = [
-  {
-    id: 'squad-inbound-triage',
-    name: 'Multilingual Inbound Customer Desk',
-    description: 'Front-desk triage bot that greets incoming callers, detects spoken language (Marathi, Hindi, or English), and transfers seamlessly without call drops.',
-    leadAgent: 'Receptionist Triage (Auto-Detect)',
-    activeCalls: 3,
-    handoffPolicy: 'Warm transfer with shared conversation context payload',
-    members: [
-      {
-        id: 'member-1',
-        name: 'Receptionist Triage',
-        role: 'Initial Greeter & Intent Classifier',
-        language: 'Marathi / Hindi / English',
-        voice: 'mr-IN-AarohiNeural',
-        transferPhrase: 'Let me connect you directly with our Marathi support specialist.',
-      },
-      {
-        id: 'member-2',
-        name: 'Marathi Supplier Closer',
-        role: 'APMC Pricing & Wholesale Negotiations',
-        language: 'Marathi (मराठी)',
-        voice: 'mr-IN-ManoharNeural',
-        transferPhrase: 'I will transfer you to order logistics to finalize the truck freight.',
-      },
-      {
-        id: 'member-3',
-        name: 'Billing & Account Desk',
-        role: 'Payment links & Invoice inquiries',
-        language: 'Hindi & English',
-        voice: 'hi-IN-SwaraNeural',
-        transferPhrase: 'Transferring to payment verification.',
-      },
-    ],
-  },
-  {
-    id: 'squad-healthcare',
-    name: 'Dental & Hospital Patient Concierge',
-    description: 'Patient symptom intake desk that triages emergencies, schedules dentist appointments, and sends instant WhatsApp confirmation.',
-    leadAgent: 'Dr. Patil Front Desk',
-    activeCalls: 1,
-    handoffPolicy: 'Immediate transfer to on-call surgeon on emergency keywords',
-    members: [
-      {
-        id: 'member-4',
-        name: 'Clinic Receptionist',
-        role: 'General appointment intake',
-        language: 'Hindi / English',
-        voice: 'hi-IN-SwaraNeural',
-        transferPhrase: 'Connecting you with Dr. Patil care coordinator.',
-      },
-      {
-        id: 'member-5',
-        name: 'Emergency Dental Triage',
-        role: 'Severe toothache & trauma assessment',
-        language: 'Hindi / Marathi',
-        voice: 'mr-IN-ManoharNeural',
-        transferPhrase: 'Escalating to doctor immediately.',
-      },
-    ],
-  },
-];
+import { Squad, SquadMember, INITIAL_SQUADS, getSquads, API_BASE, getAuthToken } from '@/lib/api';
 
 export default function SquadsPage() {
   const [squads, setSquads] = useState<Squad[]>(INITIAL_SQUADS);
@@ -100,35 +19,13 @@ export default function SquadsPage() {
   const [newSquadDesc, setNewSquadDesc] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     async function loadSquads() {
       try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('bizvoice_auth_token') : null;
-        const res = await fetch('http://127.0.0.1:8000/api/squads', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            const mapped: Squad[] = data.map((d: any) => ({
-              id: d.id,
-              name: d.name,
-              description: d.description || 'Configured multi-agent squad',
-              leadAgent: d.members?.[0]?.agent_name || 'Primary Agent',
-              activeCalls: 0,
-              handoffPolicy: 'Contextual handoff with shared conversation history',
-              members: d.members?.map((m: any, idx: number) => ({
-                id: m.agent_id || `m-${idx}`,
-                name: m.agent_name || 'Specialist Agent',
-                role: m.role_description || 'Role Handler',
-                language: 'Multilingual',
-                voice: 'mr-IN-AarohiNeural',
-                transferPhrase: 'Transferring conversation...',
-              })) || [],
-            }));
-            setSquads(mapped);
-            setSelectedSquad(mapped[0]);
-          }
+        const loaded = await getSquads();
+        if (loaded && loaded.length > 0) {
+          setSquads(loaded);
+          setSelectedSquad(loaded[0]);
         }
       } catch {
         // Fall back to INITIAL_SQUADS
@@ -143,8 +40,8 @@ export default function SquadsPage() {
     setIsLoading(true);
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('bizvoice_auth_token') : null;
-      const res = await fetch('http://127.0.0.1:8000/api/squads', {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/squads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
