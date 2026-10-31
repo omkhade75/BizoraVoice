@@ -11,23 +11,32 @@ from core.security import hash_password, hash_api_key
 
 settings = get_settings()
 
+_db_url = settings.database_url
+_is_pg = "postgresql" in _db_url
+
 connect_args = {}
-if "postgresql" in settings.database_url:
+if _is_pg:
     connect_args["ssl"] = "require"
     connect_args["statement_cache_size"] = 0
     connect_args["timeout"] = 30.0
     connect_args["command_timeout"] = 30.0
 
-engine = create_async_engine(
-    settings.database_url,
+# Pool tuning args are only valid for connection-pooled engines (PostgreSQL).
+# SQLite uses NullPool internally and rejects these keywords.
+_engine_kwargs: dict = dict(
     connect_args=connect_args,
     echo=settings.debug,
     future=True,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=5,
-    pool_recycle=300,
 )
+if _is_pg:
+    _engine_kwargs.update(
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=5,
+        pool_recycle=300,
+    )
+
+engine = create_async_engine(_db_url, **_engine_kwargs)
 
 async_session_factory = async_sessionmaker(
     engine,

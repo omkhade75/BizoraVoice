@@ -13,7 +13,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./bizvoice.db
+        value: postgresql+asyncpg://postgres:ibH%25eV6Yt%23ngh_D@db.vsmlvtrwgkpwxwhatbhx.supabase.co:5432/postgres
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
