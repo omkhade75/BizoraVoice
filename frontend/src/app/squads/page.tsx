@@ -5,16 +5,9 @@ import Link from 'next/link';
 import {
   Users,
   GitFork,
-  ArrowRight,
   Plus,
   Bot,
-  Sparkles,
   PhoneForwarded,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  Layers,
-  Settings2,
 } from 'lucide-react';
 
 interface SquadMember {

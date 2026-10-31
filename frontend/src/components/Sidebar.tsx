@@ -6,16 +6,12 @@ import { usePathname } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
 import { getStoredUser, logoutUser, AuthUser } from '@/lib/api';
 import {
-  LayoutDashboard,
   PhoneCall,
   Radio,
   Bot,
-  MailCheck,
   Code2,
   History,
   Sparkles,
-  ShieldCheck,
-  CheckCircle2,
   Hash,
   LogIn,
   LogOut,

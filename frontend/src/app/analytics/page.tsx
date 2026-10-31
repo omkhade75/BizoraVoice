@@ -3,15 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity,
-  TrendingUp,
   Clock,
   Zap,
   PhoneCall,
   CheckCircle2,
   DollarSign,
-  Layers,
   ArrowUpRight,
-  ShieldCheck,
   BarChart3,
   Globe2,
 } from 'lucide-react';

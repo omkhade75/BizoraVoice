@@ -13,12 +13,10 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 import httpx
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from config import get_settings
-from database.models import Campaign, CampaignContact, Agent, Call, Message
-from engines.registry import llm_engine, tts_engine
+from database.models import Campaign, CampaignContact, Agent
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

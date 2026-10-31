@@ -13,13 +13,7 @@ import {
   Mic,
   MicOff,
   AlertCircle,
-  Sparkles,
   Layers,
-  Building2,
-  Wheat,
-  Stethoscope,
-  Truck,
-  CheckCircle2,
 } from 'lucide-react';
 
 export function CallPanel() {

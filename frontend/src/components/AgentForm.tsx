@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Agent, CreateAgentPayload } from '@/lib/api';
-import { X, Sparkles, MessageSquare, Zap, Cpu, Cloud, CheckCircle2 } from 'lucide-react';
+import { X, Sparkles, MessageSquare, Zap, Cpu, Cloud } from 'lucide-react';
 
 interface AgentFormProps {
   initialData?: Agent | null;

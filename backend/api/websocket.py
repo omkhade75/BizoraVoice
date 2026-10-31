@@ -7,7 +7,6 @@ import json
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
 
 from core.events import CallState
 from core.session import session_manager

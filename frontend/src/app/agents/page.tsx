@@ -13,7 +13,7 @@ import {
 import { AgentCard } from '@/components/AgentCard';
 import { AgentForm } from '@/components/AgentForm';
 import { AgentWorkflowCanvas } from '@/components/AgentWorkflowCanvas';
-import { Plus, Bot, Sparkles, Filter, LayoutGrid, GitFork, Zap, Cloud, Cpu } from 'lucide-react';
+import { Plus, Bot, Filter, LayoutGrid, GitFork, Cloud, Cpu } from 'lucide-react';
 
 export default function AgentsPage() {
   const router = useRouter();

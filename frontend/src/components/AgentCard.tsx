@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Agent } from '@/lib/api';
-import { Bot, Volume2, Cpu, Edit2, Trash2, ArrowRight, MessageSquareQuote, Cloud, Zap } from 'lucide-react';
+import { Bot, Volume2, Cpu, Edit2, Trash2, ArrowRight, MessageSquareQuote, Cloud } from 'lucide-react';
 
 interface AgentCardProps {
   agent: Agent;

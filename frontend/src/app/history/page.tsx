@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCalls, Call } from '@/lib/api';
 import { CallHistory } from '@/components/CallHistory';
-import { History, ShieldCheck } from 'lucide-react';
+import { History } from 'lucide-react';
 
 export default function HistoryPage() {
   const [calls, setCalls] = useState<Call[]>([]);

@@ -21,7 +21,6 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    Index,
 )
 from sqlalchemy.orm import declarative_base, relationship
 

@@ -2,16 +2,8 @@
 
 import React, { useState } from 'react';
 import {
-  Wrench,
-  Code2,
   Plus,
   Play,
-  CheckCircle2,
-  Globe,
-  ExternalLink,
-  ShieldCheck,
-  Send,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 

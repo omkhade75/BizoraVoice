@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Call, getCall } from '@/lib/api';
 import { formatDate, formatDuration } from '@/lib/utils';
-import { Clock, MessageSquare, X, CheckCircle2, Bot, User, IndianRupee } from 'lucide-react';
+import { Clock, MessageSquare, X, CheckCircle2, Bot, User } from 'lucide-react';
 
 interface CallHistoryProps {
   calls: Call[];

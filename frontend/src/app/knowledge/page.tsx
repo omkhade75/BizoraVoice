@@ -2,17 +2,11 @@
 
 import React, { useState } from 'react';
 import {
-  BookOpen,
   FileText,
   Upload,
-  Plus,
   Search,
   CheckCircle2,
-  Trash2,
-  Layers,
   Sparkles,
-  Database,
-  ExternalLink,
 } from 'lucide-react';
 
 interface KnowledgeDoc {

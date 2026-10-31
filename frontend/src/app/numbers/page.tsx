@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Hash,
   Phone,
-  Radio,
-  Plus,
   RefreshCw,
   CheckCircle2,
   Trash2,
@@ -16,8 +14,6 @@ import {
   Zap,
   Globe,
   Signal,
-  ArrowRight,
-  ExternalLink,
   Bot,
 } from 'lucide-react';
 import {

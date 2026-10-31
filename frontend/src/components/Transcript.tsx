@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { TranscriptItem } from '@/hooks/useCall';
 import { CallState } from '@/hooks/useWebSocket';
 import { formatTime } from '@/lib/utils';
-import { User, Bot, Sparkles } from 'lucide-react';
+import { Bot, Sparkles, User } from 'lucide-react';
 
 interface TranscriptProps {
   transcript: TranscriptItem[];

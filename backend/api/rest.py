@@ -11,7 +11,6 @@ Covers:
 """
 
 from typing import List, Optional
-from datetime import datetime, timezone
 import uuid
 import os
 
@@ -22,7 +21,7 @@ from sqlalchemy import select, desc, func
 from sqlalchemy.orm import selectinload
 
 from database.db import get_db
-from database.models import Agent, Call, Message, User, VoiceNoteEnquiry, CopilotMessage
+from database.models import Agent, Call, User, VoiceNoteEnquiry, CopilotMessage
 from api.models import (
     AgentCreate,
     AgentUpdate,

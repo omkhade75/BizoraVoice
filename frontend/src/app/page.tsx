@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   PhoneCall,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
@@ -15,12 +14,7 @@ import {
   Stethoscope,
   Wheat,
   Truck,
-  Check,
-  Mic,
-  Activity,
-  Layers,
   Radio,
-  Hash,
   ChevronDown,
   ChevronUp,
   Sun,

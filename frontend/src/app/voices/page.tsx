@@ -2,15 +2,9 @@
 
 import React, { useState } from 'react';
 import {
-  Volume2,
   Play,
   Pause,
   Filter,
-  CheckCircle2,
-  Sparkles,
-  Bot,
-  Globe,
-  Mic,
 } from 'lucide-react';
 
 interface VoiceItem {

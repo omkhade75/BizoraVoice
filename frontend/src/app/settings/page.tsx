@@ -2,19 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  Settings2,
   Database,
   Key,
   Phone,
   Sun,
   Moon,
   CheckCircle2,
-  ShieldCheck,
-  Server,
   Sparkles,
   ExternalLink,
   Save,
-  AlertCircle,
 } from 'lucide-react';
 import { getStoredUser, AuthUser } from '@/lib/api';
 

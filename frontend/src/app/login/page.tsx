@@ -12,9 +12,6 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  ShieldCheck,
-  Zap,
-  PhoneCall,
   Check,
 } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';

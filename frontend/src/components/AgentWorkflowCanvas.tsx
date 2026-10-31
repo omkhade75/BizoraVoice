@@ -10,10 +10,7 @@ import {
   FileSpreadsheet,
   Play,
   Volume2,
-  CheckCircle2,
-  Sparkles,
   Settings,
-  ArrowRight,
   ShieldCheck,
   Zap,
 } from 'lucide-react';

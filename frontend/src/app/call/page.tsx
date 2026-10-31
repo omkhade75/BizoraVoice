@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CallPanel } from '@/components/CallPanel';
-import { PhoneCall, Sparkles, Activity, ShieldCheck, Zap, Radio } from 'lucide-react';
+import { PhoneCall, Activity, ShieldCheck } from 'lucide-react';
 
 export default function CallPage() {
   return (
