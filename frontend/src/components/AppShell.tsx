@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { CopilotDrawer } from '@/components/CopilotDrawer';
+import { CopilotLogo } from '@/components/CopilotLogo';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { getAuthToken } from '@/lib/api';
 
@@ -74,9 +75,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Floating Copilot Button */}
       <button
         onClick={() => setCopilotOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3.5 py-2 rounded-full bg-obsidian-elevated dark:bg-[#191B17] hover:bg-obsidian-hover text-text-primary font-medium text-xs shadow-lg border border-border-subtle hover:border-amber-500/40 transition-all hover:scale-105 active:scale-95 group"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-obsidian-elevated dark:bg-[#191B17] hover:bg-obsidian-hover text-text-primary font-medium text-xs shadow-lg border border-border-subtle hover:border-amber-500/40 transition-all hover:scale-105 active:scale-95 group"
       >
-        <Sparkles className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-12 transition-transform" />
+        <CopilotLogo size="sm" />
         <span className="font-semibold text-xs">Copilot</span>
         <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/15 text-amber-400">
           AI

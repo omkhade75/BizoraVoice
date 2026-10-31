@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
+import { CopilotLogo } from '@/components/CopilotLogo';
 import { getStoredUser, logoutUser, AuthUser } from '@/lib/api';
 import {
   PhoneCall,
@@ -140,10 +141,8 @@ export function Sidebar({ onOpenCopilot }: SidebarProps) {
             onClick={onOpenCopilot}
             className="w-full mb-3 p-2 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 hover:border-amber-500/40 text-left transition group flex items-center justify-between"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
-              </div>
+            <div className="flex items-center gap-2.5">
+              <CopilotLogo size="sm" />
               <div>
                 <div className="text-xs font-semibold text-text-primary">Voice Copilot</div>
                 <div className="text-[10px] text-text-tertiary">Architecture & Assist</div>
@@ -300,8 +299,8 @@ export function Sidebar({ onOpenCopilot }: SidebarProps) {
             }}
             className="w-full p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-left"
           >
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-500" />
+            <div className="flex items-center gap-2.5">
+              <CopilotLogo size="sm" />
               <span className="text-xs font-semibold text-text-primary">Open Voice Copilot</span>
             </div>
             <span className="text-[10px] font-mono text-amber-400">AI</span>

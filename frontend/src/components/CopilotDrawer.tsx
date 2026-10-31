@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, X, Bot, User, Check, Copy, HelpCircle, ArrowRight } from 'lucide-react';
 import { askCopilot } from '@/lib/api';
+import { CopilotLogo } from './CopilotLogo';
 
 interface CopilotDrawerProps {
   isOpen: boolean;
@@ -91,9 +92,7 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-obsidian-elevated/50">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-            <Sparkles className="w-4 h-4" />
-          </div>
+          <CopilotLogo size="md" />
           <div>
             <h3 className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
               Bizora Voice Copilot
@@ -122,8 +121,8 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
             }`}
           >
             {msg.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
-                <Bot className="w-3.5 h-3.5" />
+              <div className="shrink-0 mt-0.5">
+                <CopilotLogo size="sm" animated={false} />
               </div>
             )}
 

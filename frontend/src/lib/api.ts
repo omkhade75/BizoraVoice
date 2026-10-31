@@ -536,7 +536,10 @@ export async function registerUser(email: string, password: string, name: string
 }
 
 export async function signInWithGoogleOAuth(): Promise<{ error: any }> {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const origin =
+    typeof window !== 'undefined' && window.location.origin
+      ? window.location.origin
+      : 'https://bizora-voice-static.onrender.com';
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
