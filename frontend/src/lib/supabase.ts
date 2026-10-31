@@ -11,7 +11,7 @@ export function getSupabase(): SupabaseClient {
   if (!supabaseInstance) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        flowType: 'pkce',
+        flowType: 'implicit',
         detectSessionInUrl: true,
         persistSession: true,
         autoRefreshToken: true,

@@ -3,9 +3,9 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { syncGoogleUser } from '@/lib/api';
+import { syncGoogleUser, signInWithGoogleOAuth } from '@/lib/api';
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -33,45 +33,67 @@ function AuthCallbackContent() {
       }
 
       try {
-        const code = searchParams.get('code');
+        // 2. Check if tokens are in the URL hash fragment (#access_token=...)
+        if (typeof window !== 'undefined' && window.location.hash) {
+          const hashString = window.location.hash.replace(/^#/, '');
+          const hashParams = new URLSearchParams(hashString);
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
 
-        if (code) {
-          // PKCE code exchange
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-
-          if (data.session?.user) {
-            await syncAndRedirect(data.session.user);
-            return;
+          if (accessToken) {
+            try {
+              const { data: hashData, error: hashError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || '',
+              });
+              if (!hashError && hashData.user) {
+                await syncAndRedirect(hashData.user);
+                return;
+              }
+            } catch (hErr) {
+              console.warn('Direct hash session setup error:', hErr);
+            }
           }
         }
 
-        // Check if session is already active or in hash
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        // 3. Check for PKCE authorization code (?code=...) with resilient fallback
+        const code = searchParams.get('code');
+        if (code) {
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            if (!error && data.session?.user) {
+              await syncAndRedirect(data.session.user);
+              return;
+            }
+          } catch (codeErr: any) {
+            console.warn('PKCE verifier exchange bypassed, checking active session:', codeErr?.message);
+          }
+        }
 
+        // 4. Check if session is already active in Supabase client
+        const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session?.user) {
           await syncAndRedirect(sessionData.session.user);
           return;
         }
 
-        // If no code and no session, wait for onAuthStateChange
+        // 5. Subscribe to onAuthStateChange in case session resolves asynchronously
         const {
           data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session?.user) {
+        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          if (session?.user && mounted) {
             subscription.unsubscribe();
             await syncAndRedirect(session.user);
           }
         });
 
-        // Timeout fallback after 8 seconds
+        // 6. Timeout fallback after 6 seconds
         setTimeout(() => {
           if (mounted && status === 'processing') {
             setStatus('error');
-            setErrorMessage('Authentication timed out. No valid session was found.');
+            setErrorMessage('Authentication session could not be established. Please try signing in again.');
           }
-        }, 8000);
+        }, 6000);
       } catch (err: any) {
         if (!mounted) return;
         console.error('OAuth callback exchange failed:', err);
@@ -157,7 +179,15 @@ function AuthCallbackContent() {
                 {errorMessage}
               </p>
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => signInWithGoogleOAuth()}
+                className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas text-xs font-bold transition shadow-md cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Retry Google Sign In</span>
+              </button>
               <Link
                 href="/login"
                 className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-obsidian-elevated hover:bg-obsidian-hover border border-border-subtle text-xs font-semibold text-text-primary transition shadow-xs"
