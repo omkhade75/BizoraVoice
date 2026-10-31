@@ -25,25 +25,43 @@ export function useCall() {
 
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
+  const callStateRef = useRef<CallState>('idle');
+  const lastUserUtteranceRef = useRef<{ text: string; time: number }>({ text: '', time: 0 });
 
   const handleAudioReceived = useCallback((data: ArrayBuffer) => {
     audio.playPcmChunk(data);
   }, []);
 
   const handleTranscript = useCallback((role: 'user' | 'assistant', text: string) => {
-    setTranscript((prev) => [
-      ...prev,
-      {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        role,
-        text,
-        timestamp: new Date(),
-      },
-    ]);
+    const cleanText = text.trim();
+    if (!cleanText) return;
+
+    setTranscript((prev) => {
+      // Deduplicate: discard exact duplicate role and message received within 3000ms
+      if (prev.length > 0) {
+        const last = prev[prev.length - 1];
+        const isSame = last.role === role && last.text.trim().toLowerCase() === cleanText.toLowerCase();
+        const isRecent = Date.now() - last.timestamp.getTime() < 3000;
+        if (isSame && isRecent) {
+          return prev;
+        }
+      }
+
+      return [
+        ...prev,
+        {
+          id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          role,
+          text: cleanText,
+          timestamp: new Date(),
+        },
+      ];
+    });
   }, []);
 
   const handleStateChange = useCallback((state: CallState) => {
     setCallState(state);
+    callStateRef.current = state;
     if (state === 'listening') {
       audio.stopPlayback();
     }
@@ -96,14 +114,37 @@ export function useCall() {
       recognition.lang = langMap[lang.toLowerCase()] || 'en-IN';
 
       recognition.onresult = (event: any) => {
-        const lastIndex = event.results.length - 1;
-        if (lastIndex >= 0) {
-          const text = event.results[lastIndex][0]?.transcript?.trim();
-          if (text) {
-            console.log('SpeechRecognition captured utterance:', text);
+        // Discard speech recognition when AI is already processing or speaking
+        if (callStateRef.current === 'speaking' || callStateRef.current === 'thinking') {
+          return;
+        }
+
+        // Process only finalized results to avoid interim repeats
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const res = event.results[i];
+          if (res && res.isFinal) {
+            const text = res[0]?.transcript?.trim();
+            if (!text) continue;
+
+            const now = Date.now();
+            // Debounce: ignore duplicate identical phrase within 2500ms
+            if (
+              lastUserUtteranceRef.current.text.toLowerCase() === text.toLowerCase() &&
+              now - lastUserUtteranceRef.current.time < 2500
+            ) {
+              continue;
+            }
+
+            lastUserUtteranceRef.current = { text, time: now };
+            console.log('SpeechRecognition captured verified final utterance:', text);
+
+            // Record transcript once and trigger AI thinking state
             handleTranscript('user', text);
             setCallState('thinking');
+            callStateRef.current = 'thinking';
+
             ws.sendJson({ type: 'user_utterance', text });
+            break;
           }
         }
       };
@@ -144,6 +185,7 @@ export function useCall() {
       setDuration(0);
 
       const token = getAuthToken();
+      const localGeminiKey = typeof window !== 'undefined' ? localStorage.getItem('bizora_gemini_key') || undefined : undefined;
 
       const startRes = await fetch(`${API_BASE}/api/calls/start`, {
         method: 'POST',
@@ -151,7 +193,10 @@ export function useCall() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ agent_id: agentId || null }),
+        body: JSON.stringify({
+          agent_id: agentId || null,
+          gemini_api_key: localGeminiKey,
+        }),
       });
 
       let sessionId = generateSessionId();

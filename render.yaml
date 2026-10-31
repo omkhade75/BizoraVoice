@@ -27,6 +27,8 @@ services:
         value: https://vsmlvtrwgkpwxwhatbhx.supabase.co
       - key: SUPABASE_KEY
         value: sb_publishable_rbGRKU6uSNzFJBZNBxPnbQ_QjdNbWVZ
+      - key: GEMINI_API_KEY
+        sync: false
 
   # ── Vaani Voice Static Frontend (Instant Global CDN, Zero Cold Starts) ───
   - type: static

@@ -23,16 +23,16 @@ const VOICES = [
 ];
 
 const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', latency: 'Sub-300ms', desc: 'Fastest inference, 0% laptop load' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', latency: 'Sub-400ms', desc: 'High accuracy, balanced' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', latency: 'Sub-350ms', desc: 'Next-generation reasoning' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Cloud Recommended)', latency: 'Sub-300ms', desc: 'Multilingual Marathi, Hindi, Gujarati & English' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', latency: 'Sub-400ms', desc: 'High accuracy, balanced reasoning' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', latency: 'Sub-350ms', desc: 'Next-generation cloud reasoning' },
 ];
 
 const OLLAMA_MODELS = [
-  { id: 'qwen3.5:4b', name: 'Qwen 3.5 (4B)', latency: 'Local', desc: 'Optimized for Marathi & Hindi' },
-  { id: 'qwen2.5:7b', name: 'Qwen 2.5 (7B)', latency: 'Local', desc: 'Broader reasoning' },
-  { id: 'llama3.2:3b', name: 'Llama 3.2 (3B)', latency: 'Local', desc: 'Lightweight local model' },
-  { id: 'mistral:7b', name: 'Mistral (7B)', latency: 'Local', desc: 'Standard local instruction' },
+  { id: 'qwen3.5:4b', name: 'Qwen 3.5 (4B)', latency: 'Local PC', desc: 'Requires local Ollama at localhost:11434' },
+  { id: 'qwen2.5:7b', name: 'Qwen 2.5 (7B)', latency: 'Local PC', desc: 'Requires local Ollama at localhost:11434' },
+  { id: 'llama3.2:3b', name: 'Llama 3.2 (3B)', latency: 'Local PC', desc: 'Requires local Ollama at localhost:11434' },
+  { id: 'mistral:7b', name: 'Mistral (7B)', latency: 'Local PC', desc: 'Requires local Ollama at localhost:11434' },
 ];
 
 export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormProps) {

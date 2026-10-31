@@ -427,12 +427,26 @@ async def start_call_session(
     agent_name = agent.name if agent else "Bizora Voice Assistant"
     greeting = req.greeting_message or (agent.greeting_message if agent else None)
 
+    # 1. Resolve effective Gemini Cloud API Key
+    gemini_key = req.gemini_api_key
+    if not gemini_key and user:
+        try:
+            res = await db.execute(select(UserSettings).where(UserSettings.user_id == user.id))
+            settings_rec = res.scalars().first()
+            if settings_rec and settings_rec.encrypted_gemini_key:
+                gemini_key = decrypt_secret(settings_rec.encrypted_gemini_key)
+        except Exception as e:
+            logger.warning(f"Could not load tenant Gemini key: {e}")
+    if not gemini_key:
+        gemini_key = settings.gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+
     session = session_manager.create_session(
         agent_id=req.agent_id,
         system_prompt=system_prompt,
         voice=voice,
         model=model,
         greeting_message=greeting,
+        gemini_api_key=gemini_key,
     )
 
     # Persist initial Call record in database

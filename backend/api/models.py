@@ -338,6 +338,7 @@ class StartCallRequest(BaseModel):
     language: Optional[str] = None
     greeting_message: Optional[str] = None
     client_type: Optional[str] = "web_dashboard"
+    gemini_api_key: Optional[str] = None
 
 
 class StartCallResponse(BaseModel):

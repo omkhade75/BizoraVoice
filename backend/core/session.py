@@ -20,6 +20,7 @@ class CallSession:
         voice: str = "mr-IN-AarohiNeural",
         model: str = "qwen3.5:4b",
         greeting_message: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ):
         self.session_id = session_id
         self.call_id = call_id
@@ -28,6 +29,7 @@ class CallSession:
         self.voice = voice
         self.model = model
         self.greeting_message = greeting_message
+        self.gemini_api_key = gemini_api_key
         self.state: CallState = CallState.IDLE
         self.history: List[Dict[str, str]] = []
         self.is_muted: bool = False
@@ -59,6 +61,7 @@ class SessionManager:
         model: str = "qwen3.5:4b",
         greeting_message: Optional[str] = None,
         session_id: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ) -> CallSession:
         sid = session_id or str(uuid.uuid4())
         call_id = str(uuid.uuid4())
@@ -70,6 +73,7 @@ class SessionManager:
             voice=voice,
             model=model,
             greeting_message=greeting_message,
+            gemini_api_key=gemini_api_key,
         )
         self._sessions[sid] = session
         return session

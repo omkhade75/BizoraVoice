@@ -139,11 +139,12 @@ class VoicePipeline:
         sentence_buffer = ""
 
         try:
-            # Stream tokens from Ollama
+            # Stream tokens from LLM (Gemini Cloud or Ollama)
             async for token in self.llm.chat_stream(
                 messages=self.session.history,
                 system_prompt=self.session.system_prompt,
                 model=self.session.model,
+                api_key=self.session.gemini_api_key,
             ):
                 if self.session.interrupted:
                     break
