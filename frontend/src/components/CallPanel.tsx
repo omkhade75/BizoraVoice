@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useCall } from '@/hooks/useCall';
 import { VoiceCore3D, VoiceCoreState } from './VoiceCore3D';
 import { Transcript } from './Transcript';
@@ -19,6 +20,9 @@ import {
 } from 'lucide-react';
 
 export function CallPanel() {
+  const searchParams = useSearchParams();
+  const queryAgentId = searchParams?.get('agent') || searchParams?.get('agent_id');
+
   const {
     isInCall,
     callState,
@@ -41,12 +45,18 @@ export function CallPanel() {
       .then((data) => {
         setAgents(data);
         if (data.length > 0) {
-          const marathiAgent = data.find((a) => a.language === 'mr');
-          setSelectedAgentId(marathiAgent ? marathiAgent.id : data[0].id);
+          // If query param specifies an agent (e.g. /call?agent=agent_maya_medicare), prioritize it!
+          if (queryAgentId && data.some((a) => a.id === queryAgentId || a.name.toLowerCase() === queryAgentId.toLowerCase())) {
+            const matched = data.find((a) => a.id === queryAgentId || a.name.toLowerCase() === queryAgentId.toLowerCase());
+            setSelectedAgentId(matched ? matched.id : data[0].id);
+          } else {
+            const marathiAgent = data.find((a) => a.language === 'mr');
+            setSelectedAgentId(marathiAgent ? marathiAgent.id : data[0].id);
+          }
         }
       })
       .catch((err) => console.error('Failed to load agents:', err));
-  }, []);
+  }, [queryAgentId]);
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
 
@@ -170,7 +180,7 @@ export function CallPanel() {
             </span>
           </label>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border-subtle">
             {agents.map((agent) => {
               const isSelected = selectedAgentId === agent.id;
               return (

@@ -11,6 +11,10 @@ export const isLocal =
     window.location.hostname === '0.0.0.0');
 
 function resolveApiBase(): string {
+  // If running in production browser on Render, ALWAYS use the production Render backend
+  if (isClient && !isLocal) {
+    return DEFAULT_PROD_API;
+  }
   const envApi = process.env.NEXT_PUBLIC_API_URL;
   if (envApi) {
     if (envApi.startsWith('http://') || envApi.startsWith('https://')) {
@@ -18,13 +22,14 @@ function resolveApiBase(): string {
     }
     return `https://${envApi}`.replace(/\/+$/, '');
   }
-  if (isClient && !isLocal) {
-    return DEFAULT_PROD_API;
-  }
   return 'http://localhost:8000';
 }
 
 function resolveWsBase(): string {
+  // If running in production browser on Render, ALWAYS use the production Render WebSocket
+  if (isClient && !isLocal) {
+    return DEFAULT_PROD_WS;
+  }
   const envWs = process.env.NEXT_PUBLIC_WS_URL;
   if (envWs) {
     if (envWs.startsWith('ws://') || envWs.startsWith('wss://')) {
@@ -257,6 +262,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 // SEED FALLBACK DATA (For instant offline UX)
 // ==========================================
 export const DEFAULT_SEED_AGENTS: Agent[] = [
+  {
+    id: 'agent_maya_medicare',
+    name: 'maya',
+    language: 'en',
+    model: 'gemini-2.5-flash',
+    voice: 'hi-IN-MadhurNeural',
+    system_prompt: 'you are medicare plans caller so you will get response yes i am free you should tell about our mediclaim plans one by one .',
+    greeting_message: 'hello good afternoon . are you free to talk is yes please let me know.',
+    temperature: 0.7,
+    max_duration_seconds: 600,
+    created_at: new Date().toISOString(),
+  },
   {
     id: 'taj-hotel',
     name: 'Taj Residency Desk',
@@ -638,26 +655,42 @@ export async function deleteApiKey(keyId: string): Promise<{ success: boolean }>
 
 // Agents
 export async function getAgents(): Promise<Agent[]> {
+  let combinedAgents: Agent[] = [];
+
   try {
     const remoteAgents = await request<Agent[]>('/api/agents');
     if (Array.isArray(remoteAgents) && remoteAgents.length > 0) {
-      return remoteAgents;
+      combinedAgents = [...remoteAgents];
     }
   } catch {
-    // fallback
+    // fallback to local when backend is offline
   }
 
+  // Check localStorage for any custom agents created locally
   if (typeof window !== 'undefined') {
     const local = localStorage.getItem('bv_custom_agents');
     if (local) {
       try {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (!combinedAgents.some((a) => a.id === item.id || a.name.toLowerCase() === item.name.toLowerCase())) {
+              combinedAgents.push(item);
+            }
+          }
+        }
       } catch {}
     }
-    localStorage.setItem('bv_custom_agents', JSON.stringify(DEFAULT_SEED_AGENTS));
   }
-  return DEFAULT_SEED_AGENTS;
+
+  // Ensure DEFAULT_SEED_AGENTS (including Maya) are present
+  for (const seed of DEFAULT_SEED_AGENTS) {
+    if (!combinedAgents.some((a) => a.id === seed.id || a.name.toLowerCase() === seed.name.toLowerCase())) {
+      combinedAgents.push(seed);
+    }
+  }
+
+  return combinedAgents;
 }
 
 export async function getAgent(id: string): Promise<Agent> {
@@ -672,13 +705,14 @@ export async function getAgent(id: string): Promise<Agent> {
 }
 
 export async function createAgent(data: CreateAgentPayload): Promise<Agent> {
+  let createdAgent: Agent;
   try {
-    return await request('/api/agents', {
+    createdAgent = await request<Agent>('/api/agents', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   } catch {
-    const newAgent: Agent = {
+    createdAgent = {
       id: `agent_${Date.now()}`,
       name: data.name,
       system_prompt: data.system_prompt,
@@ -690,13 +724,20 @@ export async function createAgent(data: CreateAgentPayload): Promise<Agent> {
       max_duration_seconds: data.max_duration_seconds ?? 300,
       created_at: new Date().toISOString(),
     };
-    if (typeof window !== 'undefined') {
-      const existing = await getAgents();
-      existing.unshift(newAgent);
-      localStorage.setItem('bv_custom_agents', JSON.stringify(existing));
-    }
-    return newAgent;
   }
+
+  // Persist locally as well so it is always available across page reloads and logins
+  if (typeof window !== 'undefined') {
+    try {
+      const local = localStorage.getItem('bv_custom_agents');
+      const list = local ? JSON.parse(local) : [];
+      if (Array.isArray(list)) {
+        list.unshift(createdAgent);
+        localStorage.setItem('bv_custom_agents', JSON.stringify(list));
+      }
+    } catch {}
+  }
+  return createdAgent;
 }
 
 export async function updateAgent(id: string, data: Partial<CreateAgentPayload>): Promise<Agent> {

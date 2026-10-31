@@ -222,25 +222,24 @@ async def init_db():
             ]
             session.add_all(agents_to_seed)
         else:
-            # Ensure taj-hotel exists if other agents were already seeded
-            taj_agent = await session.get(Agent, "taj-hotel")
-            if not taj_agent:
+            # Ensure maya (Medicare & Mediclaim Policy Advisory Agent) exists
+            maya_agent = await session.get(Agent, "agent_maya_medicare")
+            if not maya_agent:
                 session.add(
                     Agent(
-                        id="taj-hotel",
-                        user_id=admin_user.id if admin_user else None,
-                        name="Taj Residency Front Desk & Concierge",
-                        description="Hotel concierge and room reservation AI assistant with real-time room availability booking.",
-                        system_prompt=(
-                            "You are the Concierge at Taj Residency Mumbai. "
-                            "Greet guests politely with 'Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?'. "
-                            "Speak in fluent, elegant English or Hindi as requested. Keep responses under 2 sentences for phone clarity."
-                        ),
-                        voice="en-IN-NeerjaNeural",
-                        model=settings.ollama_model,
+                        id="agent_maya_medicare",
+                        user_id=None,
+                        name="maya",
+                        description="Medicare & Mediclaim Policy Advisory Agent",
+                        system_prompt="you are medicare plans caller so you will get response yes i am free you should tell about our mediclaim plans one by one .",
+                        greeting_message="hello good afternoon . are you free to talk is yes please let me know.",
+                        voice="hi-IN-MadhurNeural",
+                        model="gemini-2.5-flash",
                         language="en",
-                        greeting_message="Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?",
+                        provider="google_gemini",
                         is_public=True,
+                        temperature=0.7,
+                        max_duration_seconds=600,
                     )
                 )
 

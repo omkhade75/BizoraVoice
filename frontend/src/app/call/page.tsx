@@ -1,8 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { CallPanel } from '@/components/CallPanel';
-import { PhoneCall, Activity, ShieldCheck, Zap } from 'lucide-react';
+import { PhoneCall, Activity, ShieldCheck, Zap, Loader2 } from 'lucide-react';
+
+function CallPanelFallback() {
+  return (
+    <div className="w-full h-96 rounded-2xl bg-obsidian-surface border border-border-subtle flex flex-col items-center justify-center gap-3 text-text-secondary">
+      <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+      <span className="text-xs font-mono">Initializing Acoustic Duplex Engine...</span>
+    </div>
+  );
+}
 
 export default function CallPage() {
   return (
@@ -41,7 +50,9 @@ export default function CallPage() {
         </div>
       </div>
 
-      <CallPanel />
+      <Suspense fallback={<CallPanelFallback />}>
+        <CallPanel />
+      </Suspense>
     </div>
   );
 }

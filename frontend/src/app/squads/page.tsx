@@ -365,7 +365,7 @@ export default function SquadsPage() {
             {/* Test Simulation Button */}
             <div className="pt-2 flex items-center justify-end gap-3">
               <Link
-                href="/call"
+                href={`/call?squad=${selectedSquad?.id || ''}`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs"
               >
                 <Bot className="w-4 h-4" />

@@ -270,6 +270,7 @@ async def create_agent(
         silence_timeout_ms=agent_in.silence_timeout_ms,
         tools_config=agent_in.tools_config or "[]",
         knowledge_base_id=agent_in.knowledge_base_id,
+        is_public=True,
     )
     db.add(new_agent)
     await db.commit()
