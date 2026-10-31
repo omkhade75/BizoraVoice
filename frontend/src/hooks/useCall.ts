@@ -24,6 +24,7 @@ export function useCall() {
   const [error, setError] = useState<string | null>(null);
 
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const handleAudioReceived = useCallback((data: ArrayBuffer) => {
     audio.playPcmChunk(data);
@@ -72,7 +73,71 @@ export function useCall() {
     },
   });
 
-  const startCall = useCallback(async (agentId?: string) => {
+  const startSpeechRecognition = useCallback((lang: string = 'mr') => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+
+      const langMap: Record<string, string> = {
+        mr: 'mr-IN',
+        hi: 'hi-IN',
+        gu: 'gu-IN',
+        ta: 'ta-IN',
+        te: 'te-IN',
+        bn: 'bn-IN',
+        en: 'en-IN',
+      };
+      recognition.lang = langMap[lang.toLowerCase()] || 'en-IN';
+
+      recognition.onresult = (event: any) => {
+        const lastIndex = event.results.length - 1;
+        if (lastIndex >= 0) {
+          const text = event.results[lastIndex][0]?.transcript?.trim();
+          if (text) {
+            console.log('SpeechRecognition captured utterance:', text);
+            handleTranscript('user', text);
+            setCallState('thinking');
+            ws.sendJson({ type: 'user_utterance', text });
+          }
+        }
+      };
+
+      recognition.onerror = (e: any) => {
+        console.warn('SpeechRecognition notice:', e.error);
+      };
+
+      recognition.onend = () => {
+        if (recognitionRef.current) {
+          try {
+            recognition.start();
+          } catch {}
+        }
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (e) {
+      console.warn('SpeechRecognition could not initialize:', e);
+    }
+  }, [handleTranscript, ws]);
+
+  const stopSpeechRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;
+      try {
+        rec.stop();
+      } catch {}
+    }
+  }, []);
+
+  const startCall = useCallback(async (agentId?: string, agentLang?: string) => {
     try {
       setError(null);
       setTranscript([]);
@@ -98,6 +163,7 @@ export function useCall() {
       // Connect WebSocket & start mic
       ws.connect(sessionId);
       await audio.startCapture();
+      startSpeechRecognition(agentLang);
 
       setIsInCall(true);
       setCallState('listening');
@@ -111,7 +177,7 @@ export function useCall() {
       setError(msg);
       endCall();
     }
-  }, [ws, audio]);
+  }, [ws, audio, startSpeechRecognition]);
 
   const endCall = useCallback(() => {
     if (durationTimerRef.current) {
@@ -119,6 +185,7 @@ export function useCall() {
       durationTimerRef.current = null;
     }
 
+    stopSpeechRecognition();
     audio.stopCapture();
     audio.stopPlayback();
     ws.disconnect();
@@ -127,7 +194,7 @@ export function useCall() {
     setCallState('idle');
     setUserLevel(0);
     setAssistantLevel(0);
-  }, [audio, ws]);
+  }, [audio, ws, stopSpeechRecognition]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {

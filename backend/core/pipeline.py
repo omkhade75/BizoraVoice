@@ -81,7 +81,8 @@ class VoicePipeline:
 
             # 1. Speech-to-Text
             loop = asyncio.get_running_loop()
-            transcription = await loop.run_in_executor(None, self.stt.transcribe, utterance_audio)
+            lang = getattr(self.session, "language", None)
+            transcription = await loop.run_in_executor(None, self.stt.transcribe, utterance_audio, lang)
             transcription = transcription.strip()
 
             if not transcription:
@@ -108,6 +109,29 @@ class VoicePipeline:
             self._is_processing_response = False
             if not self.session.interrupted:
                 await self.set_state(CallState.LISTENING)
+
+    async def handle_user_text(self, text: str) -> AsyncGenerator[bytes, None]:
+        """Process user text directly from client SpeechRecognition or prompt without audio STT delay."""
+        if not text or not text.strip():
+            return
+        clean_text = text.strip()
+        logger.info(f"Processing direct user text utterance: '{clean_text}'")
+        await self.set_state(CallState.THINKING)
+        self.session.add_message("user", clean_text)
+        if self.on_transcript:
+            await self.on_transcript("user", clean_text, True)
+
+        self.session.interrupted = False
+        self._is_processing_response = True
+
+        async for audio_chunk in self._generate_response():
+            if self.session.interrupted:
+                break
+            yield audio_chunk
+
+        self._is_processing_response = False
+        if not self.session.interrupted:
+            await self.set_state(CallState.LISTENING)
 
     async def _generate_response(self) -> AsyncGenerator[bytes, None]:
         """Query LLM and synthesize response speech sentence by sentence."""

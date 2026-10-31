@@ -127,30 +127,30 @@ class VADEngine:
         Returns:
             Tuple of (is_speech, confidence_float).
         """
-        import torch
-
-        model = self._ensure_model()
         audio_np = self.pcm_bytes_to_float32(audio_chunk)
+        rms = float(np.sqrt(np.mean(audio_np**2))) if len(audio_np) > 0 else 0.0
 
-        # Silero VAD expects 512 samples at 16kHz (32ms window)
-        window_size = 512 if sample_rate == 16000 else 256
-        if len(audio_np) < window_size:
-            padded = np.zeros(window_size, dtype=np.float32)
-            padded[: len(audio_np)] = audio_np
-            audio_np = padded
-        elif len(audio_np) > window_size:
-            # Process the last window_size samples
-            audio_np = audio_np[-window_size:]
-
-        tensor = torch.from_numpy(audio_np)
-
+        confidence = 0.0
         try:
+            import torch
+            model = self._ensure_model()
+            window_size = 512 if sample_rate == 16000 else 256
+            if len(audio_np) < window_size:
+                padded = np.zeros(window_size, dtype=np.float32)
+                padded[: len(audio_np)] = audio_np
+                audio_np_window = padded
+            elif len(audio_np) > window_size:
+                audio_np_window = audio_np[-window_size:]
+            else:
+                audio_np_window = audio_np
+
+            tensor = torch.from_numpy(audio_np_window)
             confidence = model(tensor, sample_rate).item()
         except Exception as exc:
-            logger.debug("VAD inference error: %s", exc)
-            confidence = 0.0
+            # Energy-based RMS voice fallback if Silero model is not cached
+            confidence = min(1.0, rms * 15.0)
 
-        is_speech = confidence >= self._threshold
+        is_speech = confidence >= self._threshold or rms > 0.02
         return is_speech, confidence
 
     # ── stateful buffering ──────────────────────────────────────────────

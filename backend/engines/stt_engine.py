@@ -119,11 +119,12 @@ class STTEngine:
 
     # ── transcription ───────────────────────────────────────────────────
 
-    def transcribe(self, audio_bytes: bytes) -> str:
+    def transcribe(self, audio_bytes: bytes, language: str | None = None) -> str:
         """Transcribe a complete audio segment.
 
         Args:
             audio_bytes: Raw PCM 16-bit 16kHz mono audio bytes.
+            language: Optional language code (e.g. 'mr', 'hi', 'gu', 'en').
 
         Returns:
             Transcribed text string (empty string if nothing detected).
@@ -131,18 +132,18 @@ class STTEngine:
         if len(audio_bytes) < 1600:  # less than 50ms of audio
             return ""
 
-        model = self._ensure_model()
-        audio_np = self.pcm_bytes_to_float32(audio_bytes)
-
         try:
+            model = self._ensure_model()
+            audio_np = self.pcm_bytes_to_float32(audio_bytes)
+
             segments, info = model.transcribe(
                 audio_np,
-                beam_size=5,
-                language="en",
+                beam_size=3,
+                language=language if language and language != "all" else None,
                 vad_filter=True,
                 vad_parameters=dict(
-                    min_silence_duration_ms=500,
-                    speech_pad_ms=200,
+                    min_silence_duration_ms=400,
+                    speech_pad_ms=150,
                 ),
             )
             text_parts: list[str] = []
@@ -153,7 +154,7 @@ class STTEngine:
 
             return " ".join(text_parts)
         except Exception as exc:
-            logger.error("Transcription failed: %s", exc, exc_info=True)
+            logger.warning("Transcription unavailable on current instance: %s", exc)
             return ""
 
     def transcribe_stream(self, audio_chunk: bytes) -> str:

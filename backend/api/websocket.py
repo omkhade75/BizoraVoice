@@ -133,6 +133,17 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                         logger.info("Client requested call termination.")
                         break
 
+                    elif msg_type in ("user_utterance", "text_prompt"):
+                        user_text = data.get("text", "").strip()
+                        if user_text:
+                            logger.info(f"Received user utterance from client: '{user_text}'")
+                            async for output_chunk in pipeline.handle_user_text(user_text):
+                                try:
+                                    await websocket.send_bytes(output_chunk)
+                                except Exception as e:
+                                    logger.error(f"Error sending audio reply chunk: {e}")
+                                    break
+
                     elif msg_type == "ping":
                         await send_json_safe({"type": "pong"})
 

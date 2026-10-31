@@ -48,11 +48,11 @@ export function CallPanel() {
       .catch((err) => console.error('Failed to load agents:', err));
   }, []);
 
-  const handleStartCall = () => {
-    startCall(selectedAgentId || undefined);
-  };
-
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
+
+  const handleStartCall = () => {
+    startCall(selectedAgentId || undefined, selectedAgent?.language);
+  };
 
   // Map callState to VoiceCoreState
   const mapVoiceCoreState = (): VoiceCoreState => {
