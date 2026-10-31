@@ -1017,6 +1017,7 @@ export interface CampaignContact {
   call_outcome?: string;
   call_id?: string;
   called_at?: string;
+  transcript?: string;
 }
 
 export interface Campaign {
@@ -1077,17 +1078,30 @@ export const DEFAULT_SEED_CAMPAIGNS: Campaign[] = [
 export async function getCampaigns(): Promise<Campaign[]> {
   try {
     const res = await request<Campaign[]>('/api/campaigns');
-    if (Array.isArray(res)) return res;
+    if (Array.isArray(res) && res.length > 0) return res;
   } catch {}
-  return [];
+
+  if (typeof window !== 'undefined') {
+    const raw = localStorage.getItem('bv_campaigns');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    localStorage.setItem('bv_campaigns', JSON.stringify(DEFAULT_SEED_CAMPAIGNS));
+  }
+  return DEFAULT_SEED_CAMPAIGNS;
 }
 
 export async function getCampaign(id: string): Promise<Campaign | null> {
   try {
-    return await request<Campaign>(`/api/campaigns/${id}`);
-  } catch {
-    return null;
-  }
+    const res = await request<Campaign>(`/api/campaigns/${id}`);
+    if (res && res.id) return res;
+  } catch {}
+
+  const all = await getCampaigns();
+  return all.find((c) => c.id === id) || null;
 }
 
 export async function createCampaign(data: CreateCampaignPayload): Promise<Campaign> {
