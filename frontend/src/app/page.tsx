@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';
 import { VoiceCore3D, VoiceCoreState } from '@/components/VoiceCore3D';
-import { getStoredUser, AuthUser } from '@/lib/api';
+import { getStoredUser, AuthUser, API_BASE } from '@/lib/api';
 
 interface Persona {
   id: string;
@@ -42,6 +42,8 @@ interface Persona {
   icon: any;
   quote: string;
   audioText: string;
+  voiceId: string;
+  langCode: string;
 }
 
 const PERSONAS: Persona[] = [
@@ -54,6 +56,8 @@ const PERSONAS: Persona[] = [
     icon: Building2,
     quote: '“Namaste! Welcome to Taj Residency. How may I assist you with your room booking or dining table today?”',
     audioText: 'नमस्ते! ताज रेसिडेंसी में आपका स्वागत है। क्या मैं आपके लिए कमरा बुक करूँ या कोई अन्य सहायता करूँ?',
+    voiceId: 'hi-IN-SwaraNeural',
+    langCode: 'hi-IN',
   },
   {
     id: 'krishi-kendra',
@@ -64,6 +68,8 @@ const PERSONAS: Persona[] = [
     icon: Wheat,
     quote: '“नमस्कार शेतकरी बंधूंनो! आजच्या नाशिक बाजार समितीमधील कांद्याचे आणि सोयाबीनचे भाव जाणून घेण्यासाठी बोला.”',
     audioText: 'नमस्कार! आज नाशिक कृषी उत्पन्न बाजार समितीत कांद्याला सरासरी २४५० रुपये प्रति क्विंटल भाव आहे.',
+    voiceId: 'mr-IN-AarohiNeural',
+    langCode: 'mr-IN',
   },
   {
     id: 'patil-dental',
@@ -74,6 +80,8 @@ const PERSONAS: Persona[] = [
     icon: Stethoscope,
     quote: '“Hello! Dr. Patil Dental Care. Would you like to book a root canal consultation or dental checkup?”',
     audioText: 'नमस्ते! डॉ. पाटिल डेंटल क्लिनिक में आपका स्वागत है। क्या आप दाँतों की जाँच के लिए अपॉइंटमेंट बुक करना चाहते हैं?',
+    voiceId: 'hi-IN-MadhurNeural',
+    langCode: 'hi-IN',
   },
   {
     id: 'apmc-logistics',
@@ -84,6 +92,8 @@ const PERSONAS: Persona[] = [
     icon: Truck,
     quote: '“Namaste! APMC Logistics dispatch desk. Inquiring about truck freight transit or bulk grain delivery?”',
     audioText: 'Namaste! APMC Wholesale Logistics. 40 metric tonnes of grain have departed Navi Mumbai warehouse and will arrive by 5 PM.',
+    voiceId: 'en-IN-NeerjaNeural',
+    langCode: 'en-IN',
   },
 ];
 
@@ -198,19 +208,27 @@ export default function EliteLandingPage() {
     }
   };
 
-  const handlePlayVoice = (persona: Persona) => {
-    setActivePersona(persona);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const fallbackSpeechSynthesis = (persona: Persona) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      if (isPlaying && activePersona.id === persona.id) {
-        setIsPlaying(false);
-        setVoiceCoreState('idle');
-        return;
-      }
-      setIsPlaying(true);
-      setVoiceCoreState('speaking');
       const utterance = new SpeechSynthesisUtterance(persona.audioText);
       utterance.rate = 0.95;
+      utterance.lang = persona.langCode || 'hi-IN';
+
+      const voices = window.speechSynthesis.getVoices();
+      const matchingVoice = voices.find(
+        (v) =>
+          v.lang.toLowerCase().includes(persona.langCode.toLowerCase()) ||
+          v.name.toLowerCase().includes('india') ||
+          v.name.toLowerCase().includes('hindi') ||
+          v.name.toLowerCase().includes('marathi')
+      );
+      if (matchingVoice) {
+        utterance.voice = matchingVoice;
+      }
+
       utterance.onend = () => {
         setIsPlaying(false);
         setVoiceCoreState('idle');
@@ -221,12 +239,62 @@ export default function EliteLandingPage() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      setIsPlaying(true);
-      setVoiceCoreState('speaking');
       setTimeout(() => {
         setIsPlaying(false);
         setVoiceCoreState('idle');
       }, 2500);
+    }
+  };
+
+  const handlePlayVoice = async (persona: Persona) => {
+    setActivePersona(persona);
+
+    // If currently playing, stop
+    if (isPlaying && activePersona.id === persona.id) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlaying(false);
+      setVoiceCoreState('idle');
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    setIsPlaying(true);
+    setVoiceCoreState('speaking');
+
+    // 1. Play authentic neural Edge-TTS voice from backend API
+    try {
+      const audioUrl = `${API_BASE}/api/voices/preview?voice=${encodeURIComponent(
+        persona.voiceId
+      )}&text=${encodeURIComponent(persona.audioText)}`;
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        setVoiceCoreState('idle');
+        audioRef.current = null;
+      };
+
+      audio.onerror = () => {
+        fallbackSpeechSynthesis(persona);
+      };
+
+      await audio.play();
+    } catch {
+      fallbackSpeechSynthesis(persona);
     }
   };
 

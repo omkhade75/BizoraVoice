@@ -14,7 +14,7 @@ from typing import List, Optional
 import uuid
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func, delete
@@ -624,13 +624,65 @@ async def get_voicenote_audio(filename: str):
 
 
 # ── Neural Voice Preview ───────────────────────────────────────────────
-@router.post("/voices/preview")
-async def preview_voice_audio(req: dict):
-    """Generate real neural voice audio (.wav) for instant browser preview."""
-    from fastapi import Response
-    voice = req.get("voice", "mr-IN-AarohiNeural")
-    text = req.get("text", "Namaste! This is Bizora Voice neural synthesis.")
-    wav_bytes = tts_engine.synthesize_wav(text, voice)
+@router.api_route("/voices/preview", methods=["GET", "POST"])
+async def preview_voice_audio(
+    request: Request,
+    voice: Optional[str] = None,
+    text: Optional[str] = None,
+):
+    """Generate real neural voice audio (.mp3 or .wav) for instant browser preview."""
+    target_voice = voice
+    target_text = text
+
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                target_voice = body.get("voice") or target_voice
+                target_text = body.get("text") or target_text
+        except Exception:
+            pass
+
+    target_voice = target_voice or "mr-IN-AarohiNeural"
+    target_text = target_text or "नमस्ते! बिज़ोरा वॉइस में आपका स्वागत है।"
+
+    # 1. High-fidelity Indic neural synthesis via edge-tts (Marathi, Hindi, Gujarati, Tamil, etc.)
+    if "Neural" in target_voice or target_voice.startswith(("mr-", "hi-", "gu-", "ta-", "te-", "bn-", "en-IN-")):
+        try:
+            import edge_tts
+            comm = edge_tts.Communicate(target_text, target_voice, connect_timeout=15)
+            audio_buf = bytearray()
+            async for chunk in comm.stream():
+                if chunk["type"] == "audio":
+                    audio_buf.extend(chunk["data"])
+            if audio_buf:
+                return Response(
+                    content=bytes(audio_buf),
+                    media_type="audio/mpeg",
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+        except Exception as e:
+            logger.warning(f"Fast Edge-TTS synthesis failed: {e}, attempting gTTS fallback")
+
+    # 2. Reliable Indian language Google TTS fallback (Marathi, Hindi, Gujarati, English)
+    try:
+        from gtts import gTTS
+        import io
+        lang_code = "mr" if target_voice.startswith("mr") else ("hi" if target_voice.startswith("hi") else "en")
+        tts_obj = gTTS(text=target_text, lang=lang_code, slow=False)
+        mp3_fp = io.BytesIO()
+        tts_obj.write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
+        return Response(
+            content=mp3_fp.read(),
+            media_type="audio/mpeg",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+    except Exception as e:
+        logger.warning(f"gTTS fallback failed: {e}, attempting wav synthesis")
+
+    # 3. Kokoro or fallback PCM wav synthesis
+    wav_bytes = tts_engine.synthesize_wav(target_text, target_voice)
     if not wav_bytes:
         raise HTTPException(status_code=500, detail="Voice synthesis failed")
     return Response(content=wav_bytes, media_type="audio/wav")

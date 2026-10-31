@@ -74,29 +74,45 @@ class TTSEngine:
 
     def _is_edge_voice(self, voice: str) -> bool:
         """Check if the voice should be handled by Edge-TTS (e.g. Marathi or Neural voices)."""
-        return "Neural" in voice or voice.startswith("mr-") or voice.startswith("hi-")
+        return "Neural" in voice or voice.startswith(
+            ("mr-", "hi-", "gu-", "ta-", "te-", "bn-", "en-IN-", "kn-", "ml-")
+        )
 
     def synthesize_edge(self, text: str, voice: str) -> bytes:
-        """Synthesize speech using Edge-TTS and return raw PCM 16-bit 24kHz audio bytes."""
+        """Synthesize speech using Edge-TTS (with gTTS fallback) and return raw PCM 16-bit 24kHz audio bytes."""
         async def _run():
-            comm = edge_tts.Communicate(text, voice)
-            raw_audio = bytearray()
-            async for chunk in comm.stream():
-                if chunk["type"] == "audio":
-                    raw_audio.extend(chunk["data"])
-            
-            if not raw_audio:
-                return b""
+            try:
+                comm = edge_tts.Communicate(text, voice, connect_timeout=15)
+                raw_audio = bytearray()
+                async for chunk in comm.stream():
+                    if chunk["type"] == "audio":
+                        raw_audio.extend(chunk["data"])
+                
+                if raw_audio:
+                    data, sr = sf.read(io.BytesIO(raw_audio), dtype="int16")
+                    return data.tobytes()
+            except Exception as e:
+                logger.warning(f"Edge-TTS stream error: {e}, falling back to gTTS")
 
-            # Decode MP3 to PCM int16 array
-            data, sr = sf.read(io.BytesIO(raw_audio), dtype="int16")
-            return data.tobytes()
+            # Fallback to gTTS for Marathi, Hindi, and Indian English
+            try:
+                from gtts import gTTS
+                lang = "mr" if voice.startswith("mr") else ("hi" if voice.startswith("hi") else "en")
+                tts_obj = gTTS(text=text, lang=lang, slow=False)
+                mp3_buf = io.BytesIO()
+                tts_obj.write_to_fp(mp3_buf)
+                mp3_buf.seek(0)
+                data, sr = sf.read(mp3_buf, dtype="int16")
+                return data.tobytes()
+            except Exception as ge:
+                logger.warning(f"gTTS fallback also failed: {ge}")
+                return b""
 
         def _run_in_isolated_thread():
             new_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(new_loop)
             try:
-                return new_loop.run_until_complete(asyncio.wait_for(_run(), timeout=5.0))
+                return new_loop.run_until_complete(asyncio.wait_for(_run(), timeout=12.0))
             finally:
                 new_loop.close()
 
@@ -104,7 +120,7 @@ class TTSEngine:
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 fut = pool.submit(_run_in_isolated_thread)
-                return fut.result(timeout=6.0)
+                return fut.result(timeout=14.0)
         except Exception as exc:
             logger.warning("Edge-TTS synthesis timed out or failed: %s, returning empty audio", exc)
             return b""
@@ -148,16 +164,14 @@ class TTSEngine:
             except Exception as exc:
                 logger.error("Kokoro TTS failed: %s, falling back to Edge-TTS", exc)
 
-        # Fallback to local audio synthesis if Edge-TTS or Kokoro is unavailable
-        logger.info("Using local synthesis fallback for text: %s", text[:40])
-        duration_sec = max(0.5, min(4.0, len(text) * 0.05))
-        sample_rate = self._sample_rate
-        t = np.linspace(0, duration_sec, int(sample_rate * duration_sec), endpoint=False)
-        # Create a pleasant conversational harmonic notification tone sequence
-        carrier = np.sin(2 * np.pi * 440 * t) * 0.2 + np.sin(2 * np.pi * 880 * t) * 0.1
-        envelope = np.exp(-t * 2)
-        audio_np = (carrier * envelope).astype(np.float32)
-        return self.float32_to_pcm16(audio_np)
+        # Final attempt: try default Indian Edge-TTS voice if custom voice failed
+        if not self._is_edge_voice(voice):
+            edge_audio = self.synthesize_edge(text, "en-IN-NeerjaNeural")
+            if edge_audio:
+                return edge_audio
+
+        logger.warning("TTS synthesis produced no audio for text: %s", text[:40])
+        return b""
 
     def synthesize_wav(self, text: str, voice: str | None = None) -> bytes:
         """Synthesize text and return complete WAV bytes with header for browser playback."""

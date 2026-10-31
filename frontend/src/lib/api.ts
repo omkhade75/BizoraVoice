@@ -1,11 +1,46 @@
 import { supabase } from '@/lib/supabase';
 
 const DEFAULT_PROD_API = 'https://bizora-voice-backend.onrender.com';
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-    ? DEFAULT_PROD_API
-    : 'http://localhost:8000');
+const DEFAULT_PROD_WS = 'wss://bizora-voice-backend.onrender.com';
+
+export const isClient = typeof window !== 'undefined';
+export const isLocal =
+  isClient &&
+  (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '0.0.0.0');
+
+function resolveApiBase(): string {
+  const envApi = process.env.NEXT_PUBLIC_API_URL;
+  if (envApi) {
+    if (envApi.startsWith('http://') || envApi.startsWith('https://')) {
+      return envApi.replace(/\/+$/, '');
+    }
+    return `https://${envApi}`.replace(/\/+$/, '');
+  }
+  if (isClient && !isLocal) {
+    return DEFAULT_PROD_API;
+  }
+  return 'http://localhost:8000';
+}
+
+function resolveWsBase(): string {
+  const envWs = process.env.NEXT_PUBLIC_WS_URL;
+  if (envWs) {
+    if (envWs.startsWith('ws://') || envWs.startsWith('wss://')) {
+      return envWs.replace(/\/+$/, '');
+    }
+    return `wss://${envWs.replace(/^https?:\/\//, '')}`.replace(/\/+$/, '');
+  }
+  const api = resolveApiBase();
+  if (api.startsWith('https://')) {
+    return api.replace(/^https:\/\//, 'wss://');
+  }
+  return api.replace(/^http:\/\//, 'ws://');
+}
+
+export const API_BASE = resolveApiBase();
+export const WS_BASE = resolveWsBase();
 
 export interface Agent {
   id: string;

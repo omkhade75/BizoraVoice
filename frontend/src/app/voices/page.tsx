@@ -8,6 +8,7 @@ import {
   Volume2,
   Sparkles,
 } from 'lucide-react';
+import { API_BASE } from '@/lib/api';
 
 interface VoiceItem {
   id: string;
@@ -173,7 +174,7 @@ export default function VoicesPage() {
 
     try {
       setPlayingVoiceId(voice.id);
-      const res = await fetch('http://127.0.0.1:8000/api/voices/preview', {
+      const res = await fetch(`${API_BASE}/api/voices/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voice: voice.id, text: voice.sampleText }),

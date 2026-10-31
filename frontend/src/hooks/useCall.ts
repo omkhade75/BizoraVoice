@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAudio } from './useAudio';
 import { useWebSocket, CallState } from './useWebSocket';
 import { generateSessionId } from '@/lib/utils';
-import { getAuthToken } from '@/lib/api';
+import { getAuthToken, API_BASE } from '@/lib/api';
 
 export interface TranscriptItem {
   id: string;
@@ -78,7 +78,6 @@ export function useCall() {
       setTranscript([]);
       setDuration(0);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const token = getAuthToken();
 
       const startRes = await fetch(`${API_BASE}/api/calls/start`, {

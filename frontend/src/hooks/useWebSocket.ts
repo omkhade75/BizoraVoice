@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { WS_BASE } from '@/lib/api';
 
 export type CallState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -30,10 +31,7 @@ export function useWebSocket({
 
     setIsConnecting(true);
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = process.env.NEXT_PUBLIC_WS_URL || 'localhost:8000';
-    const cleanHost = wsHost.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
-    const wsUrl = `${wsProtocol}//${cleanHost}/ws/call/${sessionId}`;
+    const wsUrl = `${WS_BASE}/ws/call/${sessionId}`;
 
     try {
       const ws = new WebSocket(wsUrl);

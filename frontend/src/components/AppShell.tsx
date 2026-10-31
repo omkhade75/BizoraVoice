@@ -23,6 +23,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/auth/callback');
 
   useEffect(() => {
+    // If returned from OAuth provider to root or login with ?code= or #access_token=, forward to /auth/callback
+    if (typeof window !== 'undefined' && !pathname.startsWith('/auth/callback')) {
+      const search = window.location.search;
+      const hash = window.location.hash;
+      if (search.includes('code=') || hash.includes('access_token=') || search.includes('error=')) {
+        router.replace(`/auth/callback/${search}${hash}`);
+        return;
+      }
+    }
+
     const token = getAuthToken();
     if (!isPublicPage && !token) {
       router.replace('/login');
