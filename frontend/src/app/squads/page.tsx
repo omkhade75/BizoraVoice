@@ -98,56 +98,139 @@ export default function SquadsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSquadName, setNewSquadName] = useState('');
   const [newSquadDesc, setNewSquadDesc] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateSquad = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    async function loadSquads() {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('bizvoice_auth_token') : null;
+        const res = await fetch('http://127.0.0.1:8000/api/squads', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const mapped: Squad[] = data.map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              description: d.description || 'Configured multi-agent squad',
+              leadAgent: d.members?.[0]?.agent_name || 'Primary Agent',
+              activeCalls: 0,
+              handoffPolicy: 'Contextual handoff with shared conversation history',
+              members: d.members?.map((m: any, idx: number) => ({
+                id: m.agent_id || `m-${idx}`,
+                name: m.agent_name || 'Specialist Agent',
+                role: m.role_description || 'Role Handler',
+                language: 'Multilingual',
+                voice: 'mr-IN-AarohiNeural',
+                transferPhrase: 'Transferring conversation...',
+              })) || [],
+            }));
+            setSquads(mapped);
+            setSelectedSquad(mapped[0]);
+          }
+        }
+      } catch {
+        // Fall back to INITIAL_SQUADS
+      }
+    }
+    loadSquads();
+  }, []);
+
+  const handleCreateSquad = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSquadName.trim()) return;
-    const created: Squad = {
-      id: `squad-${Date.now()}`,
-      name: newSquadName,
-      description: newSquadDesc || 'Custom multi-agent routing squad.',
-      leadAgent: 'Default Inbound Agent',
-      activeCalls: 0,
-      handoffPolicy: 'Contextual handoff on customer intent trigger',
-      members: [
-        {
-          id: `m-${Date.now()}-1`,
-          name: 'Lead Greeter',
-          role: 'Triage',
-          language: 'Hindi / English',
-          voice: 'hi-IN-SwaraNeural',
-          transferPhrase: 'Connecting you with specialist...',
+    setIsLoading(true);
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('bizvoice_auth_token') : null;
+      const res = await fetch('http://127.0.0.1:8000/api/squads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-      ],
-    };
-    setSquads([created, ...squads]);
-    setSelectedSquad(created);
-    setShowCreateModal(false);
-    setNewSquadName('');
-    setNewSquadDesc('');
+        body: JSON.stringify({
+          name: newSquadName,
+          description: newSquadDesc || 'Custom multi-agent squad',
+          members: [],
+        }),
+      });
+
+      if (res.ok) {
+        const newD = await res.json();
+        const created: Squad = {
+          id: newD.id,
+          name: newD.name,
+          description: newD.description,
+          leadAgent: 'Lead Triage Agent',
+          activeCalls: 0,
+          handoffPolicy: 'Dynamic handoff rule enabled',
+          members: [
+            {
+              id: `m-${Date.now()}`,
+              name: 'Lead Greeter',
+              role: 'Initial Triage',
+              language: 'Hindi / English / Marathi',
+              voice: 'mr-IN-AarohiNeural',
+              transferPhrase: 'Transferring to specialist...',
+            },
+          ],
+        };
+        setSquads([created, ...squads]);
+        setSelectedSquad(created);
+      }
+    } catch {
+      const created: Squad = {
+        id: `squad-${Date.now()}`,
+        name: newSquadName,
+        description: newSquadDesc || 'Custom multi-agent routing squad.',
+        leadAgent: 'Default Inbound Agent',
+        activeCalls: 0,
+        handoffPolicy: 'Contextual handoff on customer intent trigger',
+        members: [
+          {
+            id: `m-${Date.now()}-1`,
+            name: 'Lead Greeter',
+            role: 'Triage',
+            language: 'Hindi / English',
+            voice: 'hi-IN-SwaraNeural',
+            transferPhrase: 'Connecting you with specialist...',
+          },
+        ],
+      };
+      setSquads([created, ...squads]);
+      setSelectedSquad(created);
+    } finally {
+      setIsLoading(false);
+      setNewSquadName('');
+      setNewSquadDesc('');
+      setShowCreateModal(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2.5">
+              <Users className="w-6 h-6 text-amber-500" />
               Squads & Multi-Agent Workflows
             </h1>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              Vapi-Grade
+            <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+              Vapi Swarm Grade
             </span>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Orchestrate teams of AI voice agents that pass live callers between each other with zero call drops and shared conversation memory.
+          <p className="text-xs text-text-secondary mt-1">
+            Orchestrate swarms of voice agents that pass live callers between each other with zero call drops and shared conversation memory.
           </p>
         </div>
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>Create Squad</span>
@@ -158,7 +241,7 @@ export default function SquadsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Squads List */}
         <div className="space-y-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+          <div className="text-xs font-mono font-bold uppercase tracking-wider text-text-tertiary">
             Active Squads ({squads.length})
           </div>
           {squads.map((squad) => {
@@ -169,28 +252,28 @@ export default function SquadsPage() {
                 onClick={() => setSelectedSquad(squad)}
                 className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                   isSelected
-                    ? 'border-emerald-500 bg-white dark:bg-zinc-900 shadow-md ring-1 ring-emerald-500/20'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:border-zinc-300 dark:hover:border-zinc-700'
+                    ? 'border-amber-500 bg-obsidian-surface shadow-xs ring-1 ring-amber-500/30'
+                    : 'border-border-subtle bg-obsidian-surface hover:border-border-medium'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 rounded-xl bg-obsidian-canvas text-amber-500 border border-border-subtle flex items-center justify-center font-bold">
                       <Users className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{squad.name}</h3>
-                      <div className="text-[11px] text-zinc-500">{squad.members.length} Agents connected</div>
+                      <h3 className="text-sm font-semibold text-text-primary">{squad.name}</h3>
+                      <div className="text-[11px] text-text-tertiary">{squad.members.length} Agents connected</div>
                     </div>
                   </div>
                   {squad.activeCalls > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       {squad.activeCalls} Live
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2.5 line-clamp-2">
+                <p className="text-xs text-text-secondary mt-2.5 line-clamp-2">
                   {squad.description}
                 </p>
               </div>
@@ -200,60 +283,60 @@ export default function SquadsPage() {
 
         {/* Right: Squad Visual Workflow & Transfer Rules */}
         <div className="lg:col-span-2 space-y-5">
-          <div className="p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
-            <div className="flex items-start justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+          <div className="p-6 rounded-2xl border border-border-subtle bg-obsidian-surface shadow-xs space-y-6">
+            <div className="flex items-start justify-between border-b border-border-subtle pb-4">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-500">
                   Squad Orchestration Flow
                 </div>
-                <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100 mt-0.5">
+                <h2 className="text-lg font-bold text-text-primary mt-0.5">
                   {selectedSquad.name}
                 </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                <p className="text-xs text-text-secondary mt-1">
                   {selectedSquad.description}
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-[11px] font-semibold text-zinc-500">Lead Receptionist:</span>
-                <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{selectedSquad.leadAgent}</div>
+                <span className="text-[11px] font-semibold text-text-tertiary">Lead Receptionist:</span>
+                <div className="text-xs font-bold text-text-primary font-mono">{selectedSquad.leadAgent}</div>
               </div>
             </div>
 
             {/* Handoff Strategy Card */}
-            <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                <GitFork className="w-4 h-4 text-emerald-500 shrink-0" />
+            <div className="p-3.5 rounded-xl bg-obsidian-elevated border border-border-subtle flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-text-secondary">
+                <GitFork className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>
                   <strong>Handoff Policy:</strong> {selectedSquad.handoffPolicy}
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">
+              <span className="text-[10px] font-mono text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">
                 Zero Latency Gap
               </span>
             </div>
 
             {/* Sequential Squad Node Pipeline */}
             <div className="space-y-3">
-              <div className="text-xs font-bold text-zinc-600 dark:text-zinc-300">
+              <div className="text-xs font-semibold text-text-primary">
                 Connected Agents & Transfer Rules:
               </div>
 
               {selectedSquad.members.map((member, idx) => (
                 <div key={member.id} className="relative">
-                  <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="p-4 rounded-xl border border-border-subtle bg-obsidian-canvas flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-850 text-zinc-700 dark:text-zinc-300 font-bold text-xs flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-800">
+                      <div className="w-7 h-7 rounded-lg bg-obsidian-elevated text-text-primary font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-border-subtle">
                         {idx + 1}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{member.name}</h4>
-                          <span className="text-[10px] font-medium px-2 py-0.2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                          <h4 className="text-sm font-semibold text-text-primary">{member.name}</h4>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-obsidian-elevated text-text-secondary">
                             {member.language}
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{member.role}</p>
-                        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 italic mt-1.5 flex items-center gap-1.5">
+                        <p className="text-xs text-text-tertiary mt-0.5">{member.role}</p>
+                        <div className="text-[11px] text-amber-500 italic mt-1.5 flex items-center gap-1.5 font-mono">
                           <PhoneForwarded className="w-3 h-3" />
                           <span>Handoff cue: “{member.transferPhrase}”</span>
                         </div>
@@ -263,7 +346,7 @@ export default function SquadsPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <Link
                         href="/agents"
-                        className="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                        className="px-2.5 py-1.5 rounded-lg border border-border-subtle text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-obsidian-elevated transition"
                       >
                         Edit Agent
                       </Link>
@@ -272,7 +355,7 @@ export default function SquadsPage() {
 
                   {idx < selectedSquad.members.length - 1 && (
                     <div className="flex justify-center py-1">
-                      <div className="w-0.5 h-3 bg-zinc-300 dark:bg-zinc-700" />
+                      <div className="w-0.5 h-3 bg-border-subtle" />
                     </div>
                   )}
                 </div>
@@ -283,7 +366,7 @@ export default function SquadsPage() {
             <div className="pt-2 flex items-center justify-end gap-3">
               <Link
                 href="/call"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs"
               >
                 <Bot className="w-4 h-4" />
                 <span>Simulate Call Through Squad</span>
@@ -295,14 +378,14 @@ export default function SquadsPage() {
 
       {/* Create Squad Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-obsidian-surface border border-border-subtle shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-text-primary">
               Create New Agent Squad
             </h3>
             <form onSubmit={handleCreateSquad} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
                   Squad Name
                 </label>
                 <input
@@ -311,12 +394,12 @@ export default function SquadsPage() {
                   placeholder="e.g. Marathi APMC Sales Team"
                   value={newSquadName}
                   onChange={(e) => setNewSquadName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-subtle bg-obsidian-elevated text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
                   Description & Routing Purpose
                 </label>
                 <textarea
@@ -324,7 +407,7 @@ export default function SquadsPage() {
                   placeholder="Describe how calls should flow between agents..."
                   value={newSquadDesc}
                   onChange={(e) => setNewSquadDesc(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-subtle bg-obsidian-elevated text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
@@ -332,15 +415,16 @@ export default function SquadsPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-obsidian-elevated transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
+                  disabled={isLoading}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs"
                 >
-                  Create Squad
+                  {isLoading ? 'Creating...' : 'Create Squad'}
                 </button>
               </div>
             </form>

@@ -29,9 +29,10 @@ from api.models import (
     PhoneNumberUpdate,
     PhoneNumberResponse,
 )
-from api.auth import get_current_user_optional
+from api.auth import get_current_user_optional, get_current_user_required
 from services.telephony import TelephonyService
 from config import get_settings
+from core.security import encrypt_secret, decrypt_secret
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -137,6 +138,7 @@ async def import_twilio_numbers(
         # Check existing
         existing = await db.execute(select(PhoneNumber).where(PhoneNumber.phone_number == phone_no))
         rec = existing.scalar_one_or_none()
+        enc_token = encrypt_secret(auth_token) if auth_token else None
         if not rec:
             rec = PhoneNumber(
                 user_id=user_id,
@@ -145,6 +147,8 @@ async def import_twilio_numbers(
                 friendly_name=friendly,
                 provider="twilio",
                 provider_sid=prov_sid,
+                account_sid=acc_sid,
+                encrypted_auth_token=enc_token,
                 capabilities='{"voice": true, "sms": true}',
                 status="active",
                 webhook_url=webhook_url,
@@ -154,6 +158,9 @@ async def import_twilio_numbers(
         else:
             rec.friendly_name = friendly
             rec.provider_sid = prov_sid
+            rec.account_sid = acc_sid
+            if enc_token:
+                rec.encrypted_auth_token = enc_token
             if agent:
                 rec.agent_id = agent.id
             rec.webhook_url = webhook_url
@@ -284,3 +291,43 @@ async def handle_twilio_incoming_call(
 </Response>"""
 
     return Response(content=twiml_response, media_type="application/xml")
+
+
+@router.post("/outbound")
+async def place_outbound_call(
+    payload: dict,
+    user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Dispatch an outbound phone call using the tenant's configured Twilio number and credentials.
+    """
+    to_number = payload.get("to_number")
+    from_number = payload.get("from_number")
+    agent_id = payload.get("agent_id")
+    if not to_number:
+        raise HTTPException(status_code=400, detail="Missing destination phone number 'to_number'")
+
+    acc_sid = None
+    auth_token = None
+
+    # Lookup phone number record to retrieve tenant's encrypted credentials
+    if from_number:
+        res = await db.execute(select(PhoneNumber).where(PhoneNumber.phone_number == from_number))
+        pn = res.scalar_one_or_none()
+        if pn:
+            acc_sid = pn.account_sid
+            if pn.encrypted_auth_token:
+                auth_token = decrypt_secret(pn.encrypted_auth_token)
+            if not agent_id and pn.agent_id:
+                agent_id = pn.agent_id
+
+    result = await TelephonyService.dial_number(
+        to_number=to_number,
+        from_number=from_number,
+        agent_id=agent_id,
+        provider="twilio" if (acc_sid and auth_token) else ("twilio" if settings.twilio_account_sid else "simulation"),
+        account_sid=acc_sid,
+        auth_token=auth_token,
+    )
+    return result

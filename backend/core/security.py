@@ -14,9 +14,34 @@ import secrets
 from typing import Optional, Dict, Any, Tuple
 import jwt
 
+import base64
+from cryptography.fernet import Fernet
+
 from config import get_settings
 
 settings = get_settings()
+
+def _get_fernet_key() -> bytes:
+    """Derive deterministic 32-byte Fernet key from jwt_secret."""
+    digest = hashlib.sha256(settings.jwt_secret.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest)
+
+def encrypt_secret(plain_text: str) -> str:
+    """Encrypt a secret string (e.g., Twilio Auth Token, Gemini API Key) at rest."""
+    if not plain_text:
+        return ""
+    f = Fernet(_get_fernet_key())
+    return f.encrypt(plain_text.encode("utf-8")).decode("utf-8")
+
+def decrypt_secret(cipher_text: str) -> str:
+    """Decrypt a stored ciphertext back to plain text."""
+    if not cipher_text:
+        return ""
+    try:
+        f = Fernet(_get_fernet_key())
+        return f.decrypt(cipher_text.encode("utf-8")).decode("utf-8")
+    except Exception:
+        return ""
 
 
 def hash_password(password: str) -> str:

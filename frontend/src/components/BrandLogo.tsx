@@ -15,124 +15,118 @@ export function BrandLogo({
   animated = true,
   className = '',
 }: BrandLogoProps) {
-  // Dimensions for icon container
   const sizeMap = {
     sm: { box: 'w-7 h-7', iconSize: 28, text: 'text-sm', sub: 'text-[9px]' },
-    md: { box: 'w-10 h-10', iconSize: 40, text: 'text-base', sub: 'text-[11px]' },
-    lg: { box: 'w-12 h-12', iconSize: 48, text: 'text-lg', sub: 'text-xs' },
+    md: { box: 'w-9 h-9', iconSize: 36, text: 'text-base', sub: 'text-[11px]' },
+    lg: { box: 'w-11 h-11', iconSize: 44, text: 'text-lg', sub: 'text-xs' },
   };
 
   const currentSize = sizeMap[size];
 
   return (
-    <div className={`flex items-center gap-3 select-none ${className}`}>
-      {/* Precision Vector Acoustic Logo Mark */}
+    <div className={`flex items-center gap-2.5 select-none ${className}`}>
+      {/* Precision Acoustic Instrument Mark */}
       <div
-        className={`relative ${currentSize.box} rounded-xl bg-gradient-to-b from-zinc-900 to-zinc-950 border border-emerald-500/25 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-950/40 group-hover:border-emerald-500/50 group-hover:scale-105 transition-all duration-300`}
+        className={`relative ${currentSize.box} rounded-xl bg-obsidian-surface dark:bg-[#141612] border border-border-subtle dark:border-white/10 flex items-center justify-center shrink-0 shadow-sm transition-all duration-200 group-hover:border-amber-500/40`}
       >
-        {/* Subtle inner emerald radial glow */}
-        <div className="absolute inset-0 rounded-xl bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.18)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute inset-0 rounded-xl bg-[radial-gradient(ellipse_at_center,rgba(230,154,72,0.15)_0%,transparent_70%)] pointer-events-none" />
 
         <svg
-          width={currentSize.iconSize * 0.7}
-          height={currentSize.iconSize * 0.7}
+          width={currentSize.iconSize * 0.65}
+          height={currentSize.iconSize * 0.65}
           viewBox="0 0 28 28"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className="relative z-10"
         >
           <defs>
-            <linearGradient id="vaaniEmeraldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="50%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#059669" />
-            </linearGradient>
-            <linearGradient id="vaaniAmberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#fbbf24" />
-              <stop offset="100%" stopColor="#d97706" />
+            <linearGradient id="sonicAmberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#F3B866" />
+              <stop offset="100%" stopColor="#E69A48" />
             </linearGradient>
           </defs>
 
-          {/* Bar 1 (Left Outer) */}
+          {/* Bar 1 */}
           <rect
-            x="2"
+            x="3"
             y="9"
             width="2.5"
             height="10"
             rx="1.25"
-            fill="#10b981"
-            fillOpacity="0.45"
+            fill="#E69A48"
+            fillOpacity="0.4"
             className={animated ? 'animate-[pulse_2.2s_ease-in-out_infinite]' : ''}
           />
 
-          {/* Bar 2 (Left Mid) */}
+          {/* Bar 2 */}
           <rect
-            x="7"
-            y="5.5"
+            x="8"
+            y="5"
             width="2.6"
-            height="17"
+            height="18"
             rx="1.3"
-            fill="#10b981"
+            fill="#E69A48"
             fillOpacity="0.75"
             className={animated ? 'animate-[pulse_1.8s_ease-in-out_infinite_0.3s]' : ''}
           />
 
-          {/* Bar 3 (Center Apex - Vocal Core) */}
+          {/* Bar 3 (Apex Vocal Core) */}
           <rect
-            x="12.2"
-            y="2.5"
+            x="13"
+            y="2"
             width="2.8"
-            height="23"
+            height="24"
             rx="1.4"
-            fill="url(#vaaniEmeraldGrad)"
+            fill="url(#sonicAmberGrad)"
             className={animated ? 'animate-[pulse_1.5s_ease-in-out_infinite_0.1s]' : ''}
           />
 
-          {/* Bar 4 (Right Mid) */}
+          {/* Bar 4 */}
           <rect
-            x="17.6"
-            y="7"
+            x="18.2"
+            y="6.5"
             width="2.6"
-            height="14"
+            height="15"
             rx="1.3"
-            fill="#10b981"
-            fillOpacity="0.85"
+            fill="#E69A48"
+            fillOpacity="0.8"
             className={animated ? 'animate-[pulse_2s_ease-in-out_infinite_0.5s]' : ''}
           />
 
-          {/* Bar 5 (Right Outer Telephony Channel) */}
+          {/* Bar 5 */}
           <rect
             x="23"
             y="11"
             width="2.5"
-            height="7"
+            height="6"
             rx="1.25"
-            fill="url(#vaaniAmberGrad)"
+            fill="#E69A48"
+            fillOpacity="0.4"
             className={animated ? 'animate-[pulse_2.4s_ease-in-out_infinite_0.2s]' : ''}
           />
 
-          {/* Live Telemetry Ping Dot */}
-          <circle cx="24.25" cy="6" r="1.25" fill="#f59e0b" />
+          {/* Active Carrier Phosphor Dot */}
+          <circle cx="23" cy="5" r="1.5" fill="#22C55E" />
         </svg>
       </div>
 
       {/* Brand Typographic Identity */}
       {showText && (
-        <div className="flex flex-col">
+        <div className="flex flex-col leading-none">
           <div className="flex items-center gap-1.5">
-            <span className={`font-black text-zinc-900 dark:text-zinc-100 ${currentSize.text} tracking-tight`}>
-              Vaani
+            <span className={`font-bold text-text-primary tracking-tight ${currentSize.text}`}>
+              Bizora
             </span>
-            <span className={`font-semibold text-emerald-600 dark:text-emerald-400 ${currentSize.text} tracking-tight`}>
+            <span className={`font-semibold text-amber-500 dark:text-[#E69A48] tracking-tight ${currentSize.text}`}>
               Voice
             </span>
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 ml-0.5">
-              AI
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              v2.4
             </span>
           </div>
-          <p className={`${currentSize.sub} text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-1.5 leading-tight mt-0.5`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Sovereign Voice Telephony</span>
+          <p className={`${currentSize.sub} text-text-tertiary font-mono tracking-tight flex items-center gap-1.5 mt-1`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Developer Voice Infrastructure</span>
           </p>
         </div>
       )}

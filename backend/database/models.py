@@ -96,6 +96,12 @@ class Agent(Base):
     max_duration_seconds = Column(Integer, default=600)
     webhook_url = Column(String(255), nullable=True)
     is_public = Column(Boolean, default=False)
+    provider = Column(String(50), nullable=False, default="ollama")  # ollama, google_gemini
+    version = Column(String(20), nullable=False, default="v1.0.0")
+    is_published = Column(Boolean, default=False)
+    silence_timeout_ms = Column(Integer, default=2000)
+    tools_config = Column(Text, default="[]")  # JSON list of tool IDs
+    knowledge_base_id = Column(String(36), nullable=True)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
@@ -137,6 +143,9 @@ class Message(Base):
     call_id = Column(String(36), ForeignKey("calls.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(20), nullable=False)  # user, assistant, system
     content = Column(Text, nullable=False)
+    stt_ms = Column(Integer, nullable=True, default=120)
+    llm_ms = Column(Integer, nullable=True, default=180)
+    tts_ms = Column(Integer, nullable=True, default=80)
     timestamp = Column(DateTime, default=utc_now)
 
     call = relationship("Call", back_populates="messages")
@@ -226,8 +235,12 @@ class PhoneNumber(Base):
     agent_id = Column(String(36), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True)
     phone_number = Column(String(40), nullable=False, unique=True, index=True)
     friendly_name = Column(String(100), nullable=True)
+    country_code = Column(String(10), default="+1")
     provider = Column(String(30), default="twilio")  # twilio, gsm_gateway, sip
     provider_sid = Column(String(100), nullable=True)  # Twilio PN... SID
+    account_sid = Column(String(100), nullable=True)  # Twilio Account SID for per-tenant BYOT
+    encrypted_auth_token = Column(Text, nullable=True)  # Twilio Auth Token encrypted with AES/Fernet
+    sms_enabled = Column(Boolean, default=False)
     capabilities = Column(String(100), default='{"voice": true, "sms": true}')
     status = Column(String(20), default="active")  # active, inactive
     webhook_url = Column(String(255), nullable=True)
@@ -236,5 +249,177 @@ class PhoneNumber(Base):
 
     user = relationship("User")
     agent = relationship("Agent")
+
+
+class Workspace(Base):
+    """Multi-tenant Workspace boundary (Vapi Organization/Workspace equivalent)."""
+    __tablename__ = "workspaces"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), nullable=False)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    tier = Column(String(20), default="pro")
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    owner = relationship("User")
+    members = relationship("WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan")
+
+
+class WorkspaceMember(Base):
+    """Users belonging to a Workspace with Role-Based Access Control."""
+    __tablename__ = "workspace_members"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id = Column(String(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(20), default="member")  # owner, admin, member
+    created_at = Column(DateTime, default=utc_now)
+
+    workspace = relationship("Workspace", back_populates="members")
+    user = relationship("User")
+
+
+class AgentVersion(Base):
+    """Immutable published versions of Voice Assistants."""
+    __tablename__ = "agent_versions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(String(20), nullable=False)
+    snapshot = Column(Text, nullable=False)  # Full JSON snapshot of prompt, voice, model, params
+    changelog = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    agent = relationship("Agent")
+
+
+class Squad(Base):
+    """Multi-Agent Team Orchestration (Vapi Squads equivalent)."""
+    __tablename__ = "squads"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
+    handoff_rules = Column(Text, default="[]")  # JSON list of rules: [{"from_agent_id", "to_agent_id", "condition"}]
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+    members = relationship("SquadMember", back_populates="squad", cascade="all, delete-orphan")
+
+
+class SquadMember(Base):
+    """Agents enrolled within a Squad team."""
+    __tablename__ = "squad_members"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    squad_id = Column(String(36), ForeignKey("squads.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True)
+    role_description = Column(String(255), nullable=True)  # e.g., "Front Desk Receptionist", "Billing Specialist"
+    is_entry_point = Column(Boolean, default=False)
+
+    squad = relationship("Squad", back_populates="members")
+    agent = relationship("Agent")
+
+
+class Tool(Base):
+    """External Function and API Tool Definitions for Assistants."""
+    __tablename__ = "tools"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
+    tool_type = Column(String(30), default="http_webhook")  # http_webhook, custom_function, mcp
+    endpoint_url = Column(String(255), nullable=True)
+    method = Column(String(10), default="POST")
+    headers = Column(Text, default="{}")  # JSON string
+    parameters_schema = Column(Text, default="{}")  # JSON Schema
+    timeout_seconds = Column(Integer, default=5)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+
+
+class KnowledgeBase(Base):
+    """RAG Document Collections attached to Voice Assistants."""
+    __tablename__ = "knowledge_bases"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
+    total_documents = Column(Integer, default=0)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+    documents = relationship("KnowledgeDocument", back_populates="knowledge_base", cascade="all, delete-orphan")
+
+
+class KnowledgeDocument(Base):
+    """Indexed documents, text chunks, and search vectors."""
+    __tablename__ = "knowledge_documents"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    knowledge_base_id = Column(String(36), ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    file_type = Column(String(30), default="txt")  # pdf, txt, md
+    content = Column(Text, nullable=False)
+    chunk_count = Column(Integer, default=1)
+    status = Column(String(20), default="indexed")  # pending, indexing, indexed, failed
+    created_at = Column(DateTime, default=utc_now)
+
+    knowledge_base = relationship("KnowledgeBase", back_populates="documents")
+
+
+class Evaluation(Base):
+    """Conversational Quality & Accuracy Evaluation Suites."""
+    __tablename__ = "evaluations"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    agent_id = Column(String(36), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True)
+    name = Column(String(120), nullable=False)
+    rubric = Column(Text, nullable=False)  # JSON list of test criteria
+    created_at = Column(DateTime, default=utc_now)
+
+    user = relationship("User")
+    agent = relationship("Agent")
+
+
+class WebhookSubscription(Base):
+    """Outbound Event Subscriptions (call.started, call.ended, etc.)."""
+    __tablename__ = "webhook_subscriptions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    url = Column(String(255), nullable=False)
+    events = Column(String(255), default='["call.started", "call.ended"]')  # JSON list
+    signing_secret = Column(String(64), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    user = relationship("User")
+
+
+class UserSettings(Base):
+    """Tenant-specific Encrypted API Keys (Gemini, ElevenLabs, Deepgram)."""
+    __tablename__ = "user_settings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    encrypted_gemini_key = Column(Text, nullable=True)
+    encrypted_elevenlabs_key = Column(Text, nullable=True)
+    encrypted_deepgram_key = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+
 
 

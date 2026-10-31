@@ -121,25 +121,25 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-zinc-950 rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 my-8">
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="bg-obsidian-surface rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-border-subtle text-text-primary my-8">
+        <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {initialData ? 'Edit AI Voice Assistant' : 'Create New AI Voice Assistant'}
+              <h2 className="text-sm font-semibold text-text-primary">
+                {initialData ? 'Edit Voice Assistant' : 'Create Voice Assistant'}
               </h2>
-              <p className="text-[11px] text-zinc-500">
-                Configure regional language, cloud Gemini / local Ollama model, and voice persona
+              <p className="text-[11px] text-text-tertiary">
+                Configure regional language, Gemini / Ollama engine, and neural voice persona
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-obsidian-elevated transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -149,7 +149,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
           {/* Agent Name & Language */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
                 Assistant Name
               </label>
               <input
@@ -158,18 +158,18 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Marathi Supplier Desk"
-                className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-                Primary Language
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
+                Primary Spoken Language
               </label>
               <select
                 value={language}
                 onChange={(e) => handleLanguageChange(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-text-primary font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
               >
                 <option value="mr">मराठी (Marathi)</option>
                 <option value="hi">हिन्दी (Hindi)</option>
@@ -182,13 +182,13 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
 
           {/* Voice Profile */}
           <div>
-            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
-              Voice Actor Profile
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
+              Neural Voice Profile
             </label>
             <select
               value={voice}
               onChange={(e) => setVoice(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+              className="w-full px-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-text-primary focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 font-medium"
             >
               {VOICES.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -198,33 +198,32 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
             </select>
           </div>
 
-          {/* ── PARALLEL LLM SELECTION: GEMINI CLOUD VS OLLAMA LOCAL ── */}
-          <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 space-y-3">
+          {/* Parallel LLM Selection: Gemini vs Ollama */}
+          <div className="p-3.5 rounded-xl border border-border-subtle bg-obsidian-elevated/40 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+              <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <span>LLM Engine Architecture</span>
               </label>
-              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                {llmProvider === 'gemini' ? '0% Laptop CPU/GPU' : 'Sovereign On-Prem'}
+              <span className="text-[10px] font-mono text-amber-500 font-semibold">
+                {llmProvider === 'gemini' ? '0% Laptop CPU (Cloud)' : 'Local On-Premises'}
               </span>
             </div>
 
-            {/* Provider Switch Tabs */}
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handleProviderChange('gemini')}
                 className={`p-2.5 rounded-xl border flex items-center gap-2 transition ${
                   llmProvider === 'gemini'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 font-bold shadow-xs ring-1 ring-blue-500/20'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-400 font-semibold ring-1 ring-amber-500/30'
+                    : 'border-border-subtle bg-obsidian-surface text-text-secondary hover:text-text-primary'
                 }`}
               >
-                <Cloud className="w-4 h-4 text-blue-500 shrink-0" />
+                <Cloud className="w-4 h-4 text-amber-500 shrink-0" />
                 <div className="text-left">
-                  <div className="text-xs font-bold">Google Gemini</div>
-                  <div className="text-[9px] text-zinc-500">Cloud (0% load on laptop)</div>
+                  <div className="text-xs font-semibold">Google Gemini</div>
+                  <div className="text-[9px] text-text-tertiary">Cloud (0% load on laptop)</div>
                 </div>
               </button>
 
@@ -233,28 +232,27 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                 onClick={() => handleProviderChange('ollama')}
                 className={`p-2.5 rounded-xl border flex items-center gap-2 transition ${
                   llmProvider === 'ollama'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs ring-1 ring-emerald-500/20'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 font-semibold ring-1 ring-emerald-500/30'
+                    : 'border-border-subtle bg-obsidian-surface text-text-secondary hover:text-text-primary'
                 }`}
               >
                 <Cpu className="w-4 h-4 text-emerald-500 shrink-0" />
                 <div className="text-left">
-                  <div className="text-xs font-bold">Local Ollama</div>
-                  <div className="text-[9px] text-zinc-500">Laptop Hardware / Offline</div>
+                  <div className="text-xs font-semibold">Local Ollama</div>
+                  <div className="text-[9px] text-text-tertiary">Hardware / Offline</div>
                 </div>
               </button>
             </div>
 
-            {/* Model Dropdown based on active provider */}
             <div>
-              <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
+              <label className="block text-[11px] font-medium text-text-secondary mb-1">
                 Selected Model:
               </label>
               {llmProvider === 'gemini' ? (
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-blue-300 dark:border-blue-800/80 rounded-xl text-zinc-900 dark:text-zinc-100 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-obsidian-surface border border-border-subtle rounded-xl text-text-primary font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
                 >
                   {GEMINI_MODELS.map((gm) => (
                     <option key={gm.id} value={gm.id}>
@@ -267,7 +265,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                   <select
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 bg-obsidian-surface border border-border-subtle rounded-xl text-text-primary font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
                   >
                     {OLLAMA_MODELS.map((om) => (
                       <option key={om.id} value={om.id}>
@@ -280,7 +278,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     placeholder="or enter custom Ollama model name"
-                    className="w-full px-3 py-1.5 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-[11px] font-mono text-zinc-700 dark:text-zinc-300"
+                    className="w-full px-3 py-1.5 bg-obsidian-surface border border-border-subtle rounded-xl text-[11px] font-mono text-text-primary placeholder:text-text-tertiary"
                   />
                 </div>
               )}
@@ -289,7 +287,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
 
           {/* Initial Greeting Message */}
           <div>
-            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1 flex items-center gap-1">
               <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
               <span>Initial Greeting Message (Spoken instantly on call connect)</span>
             </label>
@@ -298,13 +296,13 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
               value={greetingMessage}
               onChange={(e) => setGreetingMessage(e.target.value)}
               placeholder="e.g. नमस्कार! मी बिझोरा व्हॉईस सहाय्यक आहे..."
-              className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
             />
           </div>
 
           {/* System Instructions */}
           <div>
-            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               System Instructions (Persona & Knowledge Prompt)
             </label>
             <textarea
@@ -313,14 +311,14 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="You are Bizora Voice assistant..."
-              className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
+              className="w-full px-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-text-primary font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 leading-relaxed"
             />
           </div>
 
           {/* Temperature & Max Duration Slider */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
-              <div className="flex justify-between text-zinc-600 dark:text-zinc-400 mb-1 font-semibold">
+              <div className="flex justify-between text-text-secondary mb-1 font-mono">
                 <span>Creativity (Temp): {temperature}</span>
               </div>
               <input
@@ -330,12 +328,12 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                 step="0.05"
                 value={temperature}
                 onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500"
+                className="w-full accent-amber-500"
               />
             </div>
 
             <div>
-              <div className="flex justify-between text-zinc-600 dark:text-zinc-400 mb-1 font-semibold">
+              <div className="flex justify-between text-text-secondary mb-1 font-mono">
                 <span>Max Call: {Math.round(maxDuration / 60)} mins</span>
               </div>
               <input
@@ -345,24 +343,24 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                 step="60"
                 value={maxDuration}
                 onChange={(e) => setMaxDuration(parseInt(e.target.value))}
-                className="w-full accent-emerald-500"
+                className="w-full accent-amber-500"
               />
             </div>
           </div>
 
           {/* Submit Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border-subtle">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-semibold transition"
+              className="px-4 py-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-obsidian-elevated text-xs font-semibold transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs transition shadow-md hover:scale-[1.01] active:scale-[0.99]"
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-obsidian-canvas font-bold text-xs transition shadow-xs hover:scale-[1.01] active:scale-[0.99]"
             >
               {isSubmitting ? 'Saving Assistant...' : initialData ? 'Update Assistant' : 'Create Assistant'}
             </button>

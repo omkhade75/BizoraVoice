@@ -53,7 +53,6 @@ export default function CampaignsPage() {
   const [csvText, setCsvText] = useState(SAMPLE_CONTACTS_MARATHI);
   const [expandedTranscriptId, setExpandedTranscriptId] = useState<string | null>(null);
 
-  // Polling for live status
   useEffect(() => {
     loadData();
     const interval = setInterval(refreshActiveCampaign, 3000);
@@ -71,7 +70,7 @@ export default function CampaignsPage() {
       }
       if (cList.length > 0 && !selectedCampaign) {
         const full = await getCampaign(cList[0].id);
-        setSelectedCampaign(full);
+        if (full) setSelectedCampaign(full);
       }
     } catch (err) {
       console.error('Error loading campaigns:', err);
@@ -84,10 +83,12 @@ export default function CampaignsPage() {
     if (!selectedCampaign) return;
     try {
       const updated = await getCampaign(selectedCampaign.id);
-      setSelectedCampaign(updated);
-      setCampaigns((prev) =>
-        prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
-      );
+      if (updated) {
+        setSelectedCampaign(updated);
+        setCampaigns((prev) =>
+          prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+        );
+      }
     } catch (err) {
       console.error('Error polling campaign:', err);
     }
@@ -96,7 +97,7 @@ export default function CampaignsPage() {
   const handleSelectCampaign = async (c: Campaign) => {
     try {
       const full = await getCampaign(c.id);
-      setSelectedCampaign(full);
+      if (full) setSelectedCampaign(full);
     } catch (err) {
       console.error('Error fetching campaign details:', err);
     }
@@ -185,88 +186,88 @@ export default function CampaignsPage() {
   return (
     <div className="space-y-8 max-w-7xl pb-16">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-6">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold tracking-wide uppercase">
-              100% Free Bulk Calling
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold uppercase tracking-wider">
+              Bulk Outbound Telephony
             </span>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold tracking-wide uppercase">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--brand-amber)]/10 text-[var(--brand-amber)] border border-[var(--brand-amber)]/20 font-semibold uppercase tracking-wider">
               Zero OTP Pre-Verification
             </span>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 font-semibold tracking-wide">
-              Direct Twilio + 4G GSM VoLTE
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] font-medium">
+              Direct Twilio BYOT + 4G GSM
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2.5">
-            <Radio className="w-6 h-6 text-emerald-400" />
-            Bulk Outbound Calling & Contact Dialer
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5">
+            <Radio className="w-6 h-6 text-[var(--brand-amber)]" />
+            Bulk Outbound Campaigns & Contact Dialer
           </h1>
-          <p className="text-sm text-zinc-400 mt-1 max-w-3xl">
+          <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-3xl leading-relaxed">
             Upload contact lists with dynamic variables (name, amount, item, city) and execute automated outbound calls.
-            Supports direct production Twilio or standard ₹299/mo GSM VoLTE SIM gateways with zero Vapi markup and zero recipient verification blocks.
+            Supports direct production Twilio or standard ₹299/mo GSM VoLTE SIM gateways with zero cloud markup.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowComparison(!showComparison)}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition shadow-sm"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[var(--brand-amber)]/10 hover:bg-[var(--brand-amber)]/20 text-[var(--brand-amber)] border border-[var(--brand-amber)]/30 transition shadow-sm self-start md:self-auto"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          {showComparison ? 'Hide Vapi vs Vaani Comparison' : 'Vapi.ai vs Vaani Voice Comparison'}
+          {showComparison ? 'Hide Vapi vs Bizora' : 'Compare vs Vapi.ai'}
         </button>
       </div>
 
-      {/* Comparison Drawer / Matrix */}
+      {/* Comparison Drawer */}
       {showComparison && (
-        <div className="p-6 rounded-2xl bg-zinc-900/80 border border-amber-500/30 backdrop-blur-sm space-y-4 shadow-xl">
+        <div className="p-6 rounded-xl bg-[var(--surface-card)] border border-[var(--brand-amber)]/30 backdrop-blur-sm space-y-4 shadow-xl">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
-              Side-by-Side Comparison: Vapi.ai vs Vaani Voice
+            <h3 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-[var(--brand-amber)]" />
+              Side-by-Side Comparison: Vapi.ai vs Bizora Voice
             </h3>
-            <span className="text-xs text-amber-400 font-mono">Why Vaani Voice Replaces Vapi</span>
+            <span className="text-xs text-[var(--brand-amber)] font-mono">Developer Infrastructure Advantage</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 text-zinc-400 font-mono uppercase">
+                <tr className="border-b border-[var(--border-subtle)] text-[var(--text-secondary)] font-mono uppercase">
                   <th className="py-2.5 px-3">Capability</th>
-                  <th className="py-2.5 px-3 text-amber-400 font-bold">Vapi.ai (Cloud SaaS)</th>
-                  <th className="py-2.5 px-3 text-emerald-400 font-bold">Vaani Voice (100% Self-Hosted)</th>
+                  <th className="py-2.5 px-3 text-[var(--brand-amber)] font-bold">Vapi.ai (Cloud SaaS)</th>
+                  <th className="py-2.5 px-3 text-emerald-400 font-bold">Bizora Voice (Sovereign Infrastructure)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
+              <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-secondary)]">
                 <tr>
-                  <td className="py-2.5 px-3 font-medium text-zinc-200">Bulk Outbound Calling</td>
+                  <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">Bulk Outbound Calling</td>
                   <td className="py-2.5 px-3 text-red-400/90">Locked behind paid tier ($500+/mo Growth) + per-min markup</td>
                   <td className="py-2.5 px-3 text-emerald-400 font-semibold">100% Free & Unlimited on your own server</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-3 font-medium text-zinc-200">Phone Pre-Verification</td>
+                  <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">Phone Pre-Verification</td>
                   <td className="py-2.5 px-3 text-red-400/90">Twilio trial blocks unverified numbers (must verify via OTP)</td>
                   <td className="py-2.5 px-3 text-emerald-400 font-semibold">Calls ANY number directly via production Twilio or GSM VoLTE</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-3 font-medium text-zinc-200">Cost per Minute</td>
+                  <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">Cost per Minute</td>
                   <td className="py-2.5 px-3 text-red-400/90">~$0.15 to $0.25 / minute (₹13 to ₹22/min)</td>
                   <td className="py-2.5 px-3 text-emerald-400 font-semibold">₹0 AI inference + ₹299/mo unlimited Indian SIM</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-3 font-medium text-zinc-200">Multi-Tenancy & Data Isolation</td>
-                  <td className="py-2.5 px-3 text-zinc-400">Shared multi-tenant cloud; data stored on Vapi servers</td>
+                  <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">Multi-Tenancy & Data Isolation</td>
+                  <td className="py-2.5 px-3 text-[var(--text-secondary)]">Shared multi-tenant cloud; data stored on Vapi servers</td>
                   <td className="py-2.5 px-3 text-emerald-400 font-semibold">Local SQLite/PostgreSQL; 100% user-isolated & private</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-3 font-medium text-zinc-200">Regional Asian Voices</td>
-                  <td className="py-2.5 px-3 text-zinc-400">Generic English/Hindi with robotic cloud accents</td>
+                  <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">Regional Indic Voices</td>
+                  <td className="py-2.5 px-3 text-[var(--text-secondary)]">Generic English/Hindi with robotic cloud accents</td>
                   <td className="py-2.5 px-3 text-emerald-400 font-semibold">Native Marathi (Aarohi/Manohar), Hindi, Gujarati, Tamil (24kHz HD)</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-3 font-medium text-zinc-200">Telephony Hardware Freedom</td>
-                  <td className="py-2.5 px-3 text-zinc-400">Cloud WebRTC and Twilio only</td>
+                  <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">Telephony Hardware Freedom</td>
+                  <td className="py-2.5 px-3 text-[var(--text-secondary)]">Cloud WebRTC and Twilio only</td>
                   <td className="py-2.5 px-3 text-emerald-400 font-semibold">Twilio + 4G GSM Gateway (GoIP/Dinstar) + SIP Trunking</td>
                 </tr>
               </tbody>
@@ -279,21 +280,21 @@ export default function CampaignsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Create Outbound Campaign */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 shadow-xl space-y-5">
-            <div className="flex items-center gap-2.5 border-b border-zinc-800 pb-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+          <div className="p-6 rounded-xl bg-[var(--surface-card)] border border-[var(--border-subtle)] shadow-xl space-y-5">
+            <div className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] pb-4">
+              <div className="w-8 h-8 rounded-lg bg-[var(--brand-amber)]/10 border border-[var(--brand-amber)]/20 text-[var(--brand-amber)] flex items-center justify-center">
                 <Upload className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="font-semibold text-zinc-100 text-sm">Create New Outbound Campaign</h2>
-                <p className="text-xs text-zinc-400">Import numbers and map dynamic variables</p>
+                <h2 className="font-semibold text-[var(--text-primary)] text-sm">Create Outbound Campaign</h2>
+                <p className="text-xs text-[var(--text-secondary)]">Import contacts & map dynamic speech variables</p>
               </div>
             </div>
 
             <form onSubmit={handleCreateCampaign} className="space-y-4">
               {/* Campaign Name */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
                   Campaign Title
                 </label>
                 <input
@@ -302,19 +303,19 @@ export default function CampaignsPage() {
                   onChange={(e) => setCampaignName(e.target.value)}
                   placeholder="e.g. Maharashtra Turmeric Suppliers Outreach"
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500/50 transition font-medium"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--brand-amber)] transition font-medium"
                 />
               </div>
 
               {/* Agent Picker */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
                   AI Voice Agent & Language
                 </label>
                 <select
                   value={selectedAgentId}
                   onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500/50 transition font-medium"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--brand-amber)] transition font-medium"
                 >
                   {agents.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -326,54 +327,54 @@ export default function CampaignsPage() {
 
               {/* Telephony Provider Selector */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
                   Outbound Telephony Route
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setTelephonyProvider('simulation')}
-                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                    className={`p-2.5 rounded-lg border text-left transition flex flex-col justify-between ${
                       telephonyProvider === 'simulation'
-                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                        ? 'bg-[var(--brand-amber)]/10 border-[var(--brand-amber)] text-[var(--brand-amber)]'
+                        : 'bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-subtle)]'
                     }`}
                   >
                     <span className="text-[11px] font-semibold">Local Sim</span>
-                    <span className="text-[9px] text-zinc-500">100% Free Test</span>
+                    <span className="text-[9px] opacity-75">100% Free Test</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setTelephonyProvider('sip_gsm')}
-                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                    className={`p-2.5 rounded-lg border text-left transition flex flex-col justify-between ${
                       telephonyProvider === 'sip_gsm'
-                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                        ? 'bg-[var(--brand-amber)]/10 border-[var(--brand-amber)] text-[var(--brand-amber)]'
+                        : 'bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-subtle)]'
                     }`}
                   >
                     <span className="text-[11px] font-semibold">4G GSM Gateway</span>
-                    <span className="text-[9px] text-zinc-500">₹299/mo Unlimited</span>
+                    <span className="text-[9px] opacity-75">₹299/mo Unlimited</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setTelephonyProvider('twilio')}
-                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                    className={`p-2.5 rounded-lg border text-left transition flex flex-col justify-between ${
                       telephonyProvider === 'twilio'
-                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                        ? 'bg-[var(--brand-amber)]/10 border-[var(--brand-amber)] text-[var(--brand-amber)]'
+                        : 'bg-[var(--surface-subtle)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-subtle)]'
                     }`}
                   >
                     <span className="text-[11px] font-semibold">Direct Twilio</span>
-                    <span className="text-[9px] text-zinc-500">Zero Vapi Markup</span>
+                    <span className="text-[9px] opacity-75">Zero Markup</span>
                   </button>
                 </div>
               </div>
 
               {/* Caller ID */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
                   Outbound Caller ID (Phone Number)
                 </label>
                 <input
@@ -381,29 +382,29 @@ export default function CampaignsPage() {
                   value={callerPhone}
                   onChange={(e) => setCallerPhone(e.target.value)}
                   placeholder="+919820011223"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500/50 transition font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--brand-amber)] transition font-mono"
                 />
               </div>
 
               {/* CSV Contacts Input */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-zinc-300">
+                  <label className="text-xs font-semibold text-[var(--text-secondary)]">
                     Contacts List (Name, Phone, Item, Amount, City)
                   </label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setCsvText(SAMPLE_CONTACTS_MARATHI)}
-                      className="text-[10px] text-emerald-400 hover:underline"
+                      className="text-[10px] text-[var(--brand-amber)] hover:underline"
                     >
                       Marathi Sample
                     </button>
-                    <span className="text-zinc-600">•</span>
+                    <span className="text-[var(--text-tertiary)]">•</span>
                     <button
                       type="button"
                       onClick={() => setCsvText(SAMPLE_CONTACTS_HINDI)}
-                      className="text-[10px] text-amber-400 hover:underline"
+                      className="text-[10px] text-emerald-400 hover:underline"
                     >
                       Hindi Sample
                     </button>
@@ -414,17 +415,17 @@ export default function CampaignsPage() {
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
                   placeholder="Anil Shinde, +919822012345, Mango Pulp, Rs 4500, Ratnagiri"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs font-mono focus:outline-none focus:border-emerald-500/50 transition resize-none leading-relaxed"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-mono focus:outline-none focus:border-[var(--brand-amber)] transition resize-none leading-relaxed"
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">
-                  Each line: <code className="text-zinc-400">Name, Phone, Item, Amount, City</code>. Automatically templated into agent speech.
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                  Each line: <code className="text-[var(--text-primary)]">Name, Phone, Item, Amount, City</code>. Automatically templated into agent speech.
                 </p>
               </div>
 
               <button
                 type="submit"
                 disabled={creating}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 disabled:opacity-50"
+                className="w-full py-2.5 px-4 rounded-lg bg-[var(--brand-amber)] hover:bg-[var(--brand-amber-light)] text-zinc-950 font-semibold text-xs transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
                 {creating ? (
                   <>
@@ -441,9 +442,9 @@ export default function CampaignsPage() {
             </form>
           </div>
 
-          {/* Quick Stats or Previous Campaigns List */}
-          <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-            <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono">
+          {/* Saved Campaigns List */}
+          <div className="p-5 rounded-xl bg-[var(--surface-card)] border border-[var(--border-subtle)] space-y-3">
+            <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
               Saved Campaigns ({campaigns.length})
             </h3>
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -451,15 +452,15 @@ export default function CampaignsPage() {
                 <div
                   key={c.id}
                   onClick={() => handleSelectCampaign(c)}
-                  className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between ${
+                  className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between ${
                     selectedCampaign?.id === c.id
-                      ? 'bg-zinc-800/80 border-emerald-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700'
+                      ? 'bg-[var(--brand-amber)]/10 border-[var(--brand-amber)]/50'
+                      : 'bg-[var(--surface-subtle)] border-[var(--border-subtle)] hover:border-[var(--brand-amber)]/30'
                   }`}
                 >
                   <div className="truncate mr-2">
-                    <div className="text-xs font-semibold text-zinc-200 truncate">{c.name}</div>
-                    <div className="text-[10px] text-zinc-500 flex items-center gap-2 mt-0.5">
+                    <div className="text-xs font-semibold text-[var(--text-primary)] truncate">{c.name}</div>
+                    <div className="text-[10px] text-[var(--text-secondary)] flex items-center gap-2 mt-0.5">
                       <span>{c.total_contacts} contacts</span>
                       <span>•</span>
                       <span className="capitalize">{c.telephony_provider}</span>
@@ -470,8 +471,8 @@ export default function CampaignsPage() {
                       c.status === 'completed'
                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         : c.status === 'running'
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
-                        : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        ? 'bg-[var(--brand-amber)]/10 text-[var(--brand-amber)] border-[var(--brand-amber)]/20 animate-pulse'
+                        : 'bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
                     }`}
                   >
                     {c.status}
@@ -482,12 +483,12 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        {/* Right Column: Live Campaign Monitor & Contact Call Records */}
+        {/* Right Column: Live Campaign Monitor */}
         <div className="lg:col-span-7 space-y-6">
           {selectedCampaign ? (
-            <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 shadow-xl space-y-6">
+            <div className="p-6 rounded-xl bg-[var(--surface-card)] border border-[var(--border-subtle)] shadow-xl space-y-6">
               {/* Campaign Header & Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span
@@ -495,19 +496,19 @@ export default function CampaignsPage() {
                         selectedCampaign.status === 'completed'
                           ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           : selectedCampaign.status === 'running'
-                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
-                          : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                          ? 'bg-[var(--brand-amber)]/10 text-[var(--brand-amber)] border-[var(--brand-amber)]/20 animate-pulse'
+                          : 'bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
                       }`}
                     >
                       {selectedCampaign.status}
                     </span>
-                    <span className="text-[11px] text-zinc-500 font-mono">
+                    <span className="text-[11px] text-[var(--text-secondary)] font-mono">
                       Route: {(selectedCampaign.telephony_provider || 'GSM').toUpperCase()}
                     </span>
                   </div>
-                  <h2 className="text-lg font-bold text-zinc-100">{selectedCampaign.name}</h2>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Agent: <span className="text-emerald-400 font-medium">{selectedCampaign.agent_name}</span> • Caller ID: {selectedCampaign.caller_phone || 'Default'}
+                  <h2 className="text-lg font-bold text-[var(--text-primary)]">{selectedCampaign.name}</h2>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Agent: <span className="text-[var(--brand-amber)] font-medium">{selectedCampaign.agent_name}</span> • Caller ID: {selectedCampaign.caller_phone || 'Default'}
                   </p>
                 </div>
 
@@ -516,7 +517,7 @@ export default function CampaignsPage() {
                     <button
                       type="button"
                       onClick={() => handlePauseCampaign(selectedCampaign.id)}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--brand-amber)]/10 hover:bg-[var(--brand-amber)]/20 text-[var(--brand-amber)] border border-[var(--brand-amber)]/30 transition flex items-center gap-1.5"
                     >
                       <Pause className="w-3.5 h-3.5" />
                       Pause
@@ -525,7 +526,7 @@ export default function CampaignsPage() {
                     <button
                       type="button"
                       onClick={() => handleStartCampaign(selectedCampaign.id)}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-950/40"
+                      className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[var(--brand-amber)] hover:bg-[var(--brand-amber-light)] text-zinc-950 transition flex items-center gap-1.5 shadow-sm"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
                       Launch Outbound Calls
@@ -535,39 +536,39 @@ export default function CampaignsPage() {
                   <button
                     type="button"
                     onClick={() => handleDeleteCampaign(selectedCampaign.id)}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-zinc-800 transition"
+                    className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 border border-[var(--border-subtle)] transition"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Progress Counters & Savings Banner */}
+              {/* Progress Counters */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
-                  <div className="text-[11px] text-zinc-400 font-medium">Recipients</div>
-                  <div className="text-xl font-bold text-zinc-100 mt-1">
+                <div className="p-3.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                  <div className="text-[11px] text-[var(--text-secondary)] font-medium">Recipients</div>
+                  <div className="text-xl font-bold text-[var(--text-primary)] mt-1 font-mono">
                     {selectedCampaign.total_contacts}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
-                  <div className="text-[11px] text-zinc-400 font-medium">Completed Calls</div>
-                  <div className="text-xl font-bold text-emerald-400 mt-1">
+                <div className="p-3.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                  <div className="text-[11px] text-[var(--text-secondary)] font-medium">Completed Calls</div>
+                  <div className="text-xl font-bold text-emerald-400 mt-1 font-mono">
                     {selectedCampaign.completed_calls}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
-                  <div className="text-[11px] text-zinc-400 font-medium">Total Duration</div>
-                  <div className="text-xl font-bold text-zinc-100 mt-1 font-mono">
+                <div className="p-3.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)]">
+                  <div className="text-[11px] text-[var(--text-secondary)] font-medium">Total Duration</div>
+                  <div className="text-xl font-bold text-[var(--text-primary)] mt-1 font-mono">
                     {Math.floor((selectedCampaign.total_duration_sec || 0) / 60)}m {(selectedCampaign.total_duration_sec || 0) % 60}s
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-[11px] text-emerald-400 font-medium">Vapi Bill Saved</div>
-                  <div className="text-xl font-bold text-emerald-300 mt-1">
+                <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="text-[11px] text-emerald-400 font-medium">Vapi Markup Saved</div>
+                  <div className="text-xl font-bold text-emerald-400 mt-1 font-mono">
                     ₹{selectedCampaign.cost_saved_inr || 0}
                   </div>
                 </div>
@@ -575,18 +576,18 @@ export default function CampaignsPage() {
 
               {/* Progress Bar */}
               <div>
-                <div className="flex items-center justify-between text-xs text-zinc-400 mb-1.5 font-medium">
+                <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                   <span>Batch Completion</span>
-                  <span>
+                  <span className="font-mono">
                     {selectedCampaign.total_contacts > 0
                       ? Math.round((selectedCampaign.completed_calls / selectedCampaign.total_contacts) * 100)
                       : 0}
                     %
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-zinc-950 overflow-hidden border border-zinc-800">
+                <div className="w-full h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden border border-[var(--border-subtle)]">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+                    className="h-full bg-[var(--brand-amber)] transition-all duration-500"
                     style={{
                       width: `${
                         selectedCampaign.total_contacts > 0
@@ -598,16 +599,16 @@ export default function CampaignsPage() {
                 </div>
               </div>
 
-              {/* Contact List Table with Expandable Transcripts */}
+              {/* Contact List Table */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono">
-                    Recipient Dialing Log ({selectedCampaign.contacts?.length || 0})
+                  <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider font-mono">
+                    Dialing Queue ({selectedCampaign.contacts?.length || 0})
                   </h3>
                   <button
                     type="button"
                     onClick={refreshActiveCampaign}
-                    className="text-[11px] text-zinc-400 hover:text-zinc-200 flex items-center gap-1"
+                    className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1"
                   >
                     <RefreshCw className="w-3 h-3" /> Refresh
                   </button>
@@ -618,18 +619,18 @@ export default function CampaignsPage() {
                     selectedCampaign.contacts.map((c: any) => (
                       <div
                         key={c.id}
-                        className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800/80 hover:border-zinc-700 transition space-y-2"
+                        className="p-3.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-subtle)] hover:border-[var(--brand-amber)]/40 transition space-y-2"
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-xs font-bold text-zinc-100 flex items-center gap-2">
+                            <div className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-2">
                               {c.name}
-                              <span className="font-mono text-[11px] text-zinc-400 font-normal">
+                              <span className="font-mono text-[11px] text-[var(--text-secondary)] font-normal">
                                 {c.phone_number}
                               </span>
                             </div>
                             {c.variables && (
-                              <div className="text-[10px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+                              <div className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1.5 mt-0.5">
                                 {c.variables.item && <span>Item: {c.variables.item}</span>}
                                 {c.variables.amount && <span>• Rate: {c.variables.amount}</span>}
                                 {c.variables.city && <span>• City: {c.variables.city}</span>}
@@ -643,14 +644,14 @@ export default function CampaignsPage() {
                                 c.status === 'completed'
                                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                   : c.status === 'calling'
-                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
-                                  : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                                  ? 'bg-[var(--brand-amber)]/10 text-[var(--brand-amber)] border-[var(--brand-amber)]/20 animate-pulse'
+                                  : 'bg-[var(--surface-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
                               }`}
                             >
                               {c.status}
                             </span>
                             {c.duration > 0 && (
-                              <span className="text-[10px] text-zinc-500 font-mono">{c.duration}s</span>
+                              <span className="text-[10px] text-[var(--text-secondary)] font-mono">{c.duration}s</span>
                             )}
                           </div>
                         </div>
@@ -663,21 +664,21 @@ export default function CampaignsPage() {
                               onClick={() =>
                                 setExpandedTranscriptId(expandedTranscriptId === c.id ? null : c.id)
                               }
-                              className="text-[11px] text-emerald-400/90 hover:text-emerald-300 font-medium flex items-center gap-1"
+                              className="text-[11px] text-[var(--brand-amber)] hover:underline font-medium flex items-center gap-1"
                             >
                               {expandedTranscriptId === c.id ? (
                                 <>
-                                  <ChevronUp className="w-3.5 h-3.5" /> Hide Spoken Dialogue
+                                  <ChevronUp className="w-3.5 h-3.5" /> Hide Dialogue
                                 </>
                               ) : (
                                 <>
-                                  <ChevronDown className="w-3.5 h-3.5" /> View Spoken Dialogue
+                                  <ChevronDown className="w-3.5 h-3.5" /> View Dialogue
                                 </>
                               )}
                             </button>
 
                             {expandedTranscriptId === c.id && (
-                              <div className="mt-2 p-3 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-200 font-mono whitespace-pre-line leading-relaxed">
+                              <div className="mt-2 p-3 rounded-md bg-[var(--surface-card)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] font-mono whitespace-pre-line leading-relaxed">
                                 {c.transcript}
                               </div>
                             )}
@@ -686,7 +687,7 @@ export default function CampaignsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-xs text-zinc-500">
+                    <div className="text-center py-8 text-xs text-[var(--text-secondary)]">
                       No contacts found in this campaign.
                     </div>
                   )}
@@ -694,10 +695,10 @@ export default function CampaignsPage() {
               </div>
             </div>
           ) : (
-            <div className="p-12 rounded-2xl bg-zinc-900/40 border border-dashed border-zinc-800 text-center space-y-3">
-              <Users className="w-10 h-10 text-zinc-600 mx-auto" />
-              <h3 className="text-sm font-semibold text-zinc-300">Select or Create a Campaign</h3>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+            <div className="p-12 rounded-xl bg-[var(--surface-card)] border border-dashed border-[var(--border-subtle)] text-center space-y-3">
+              <Users className="w-10 h-10 text-[var(--text-tertiary)] mx-auto" />
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Select or Create a Campaign</h3>
+              <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
                 Fill in the form on the left or click a sample list to test automated outbound dialing in Marathi, Hindi, or English.
               </p>
             </div>

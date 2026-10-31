@@ -159,6 +159,17 @@ class TTSEngine:
         audio_np = (carrier * envelope).astype(np.float32)
         return self.float32_to_pcm16(audio_np)
 
+    def synthesize_wav(self, text: str, voice: str | None = None) -> bytes:
+        """Synthesize text and return complete WAV bytes with header for browser playback."""
+        pcm_bytes = self.synthesize(text, voice)
+        if not pcm_bytes:
+            return b""
+        audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
+        buf = io.BytesIO()
+        sf.write(buf, audio_int16, self._sample_rate, format="WAV", subtype="PCM_16")
+        buf.seek(0)
+        return buf.read()
+
     async def synthesize_stream(
         self, text: str, voice: str | None = None
     ) -> AsyncGenerator[bytes, None]:

@@ -8,8 +8,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+import uuid
 from database.db import get_db
-from database.models import User, ApiKey
+from database.models import User, ApiKey, Workspace, WorkspaceMember
 from api.models import (
     UserRegisterRequest,
     UserLoginRequest,
@@ -142,17 +143,19 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
 
 @auth_router.post("/google", response_model=AuthResponse)
 async def google_auth(req: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
-    """Authenticate or auto-register via Google OAuth."""
+    """Authenticate or auto-register via Google OAuth with Supabase integration."""
     email_clean = req.email.lower().strip()
     res = await db.execute(select(User).where(User.email == email_clean))
     user = res.scalars().first()
 
     if not user:
+        user_id = req.supabase_uid or str(uuid.uuid4())
         user = User(
+            id=user_id,
             email=email_clean,
             name=req.name or email_clean.split("@")[0].capitalize(),
-            company="Google Workspace",
-            hashed_password=hash_password(f"google_oauth_{email_clean}"),
+            company="Google Account",
+            hashed_password=hash_password(f"google_oauth_{email_clean}_{uuid.uuid4()}"),
             role="developer",
             tier="pro",
             credits_minutes=120.0,
@@ -160,6 +163,25 @@ async def google_auth(req: GoogleAuthRequest, db: AsyncSession = Depends(get_db)
         db.add(user)
         await db.commit()
         await db.refresh(user)
+
+        # Create user's initial workspace
+        ws_id = str(uuid.uuid4())
+        workspace = Workspace(
+            id=ws_id,
+            name=f"{user.name}'s Workspace",
+            owner_id=user.id,
+            tier="pro",
+        )
+        db.add(workspace)
+        await db.commit()
+
+        ws_member = WorkspaceMember(
+            id=str(uuid.uuid4()),
+            workspace_id=ws_id,
+            user_id=user.id,
+            role="owner",
+        )
+        db.add(ws_member)
 
         # Generate default developer API key
         raw_key, k_hash, k_prefix = generate_api_key()

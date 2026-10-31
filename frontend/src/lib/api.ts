@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase';
+
 const DEFAULT_PROD_API = 'https://bizora-voice-backend.onrender.com';
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -13,21 +15,32 @@ export interface Agent {
   voice: string;
   language: string;
   model: string;
+  provider?: string;
+  version?: string;
+  is_published?: boolean;
   temperature?: number;
   max_duration_seconds?: number;
+  tools_config?: string;
+  knowledge_base_id?: string;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface CreateAgentPayload {
   name: string;
+  description?: string;
   system_prompt: string;
   greeting_message?: string;
   voice: string;
   language?: string;
   model: string;
+  provider?: string;
+  version?: string;
+  is_published?: boolean;
   temperature?: number;
   max_duration_seconds?: number;
+  tools_config?: string;
+  knowledge_base_id?: string;
 }
 
 export interface Call {
@@ -54,9 +67,13 @@ export interface PlatformStats {
   total_calls: number;
   total_minutes: number;
   total_agents: number;
-  cost_saved_usd: number;
-  cost_saved_inr: number;
-  hardware: {
+  cost_saved_usd?: number;
+  cost_saved_inr?: number;
+  estimated_cost_saved_usd?: number;
+  estimated_cost_saved_inr?: number;
+  total_api_keys?: number;
+  active_sessions?: number;
+  hardware?: {
     cpu: string;
     ram_available_gb: number;
     platform: string;
@@ -369,9 +386,33 @@ export async function getHealth(): Promise<{ status: string; models: Record<stri
 
 export async function getStats(): Promise<PlatformStats> {
   try {
-    return await request('/api/stats');
+    const data = await request<PlatformStats>('/api/stats');
+    const usd = data.cost_saved_usd ?? data.estimated_cost_saved_usd ?? 0;
+    const inr = data.cost_saved_inr ?? data.estimated_cost_saved_inr ?? (usd * 86.5);
+    return {
+      ...data,
+      cost_saved_usd: usd,
+      cost_saved_inr: inr,
+      estimated_cost_saved_usd: usd,
+      estimated_cost_saved_inr: inr,
+    };
   } catch {
-    return DEFAULT_SEED_STATS;
+    return {
+      total_calls: 0,
+      total_minutes: 0,
+      total_agents: 0,
+      total_api_keys: 0,
+      cost_saved_usd: 0,
+      cost_saved_inr: 0,
+      estimated_cost_saved_usd: 0,
+      estimated_cost_saved_inr: 0,
+      active_sessions: 0,
+      hardware: {
+        cpu: 'Local Neural Core (8 Threads)',
+        ram_available_gb: 16,
+        platform: 'Self-Hosted Private Stack',
+      },
+    };
   }
 }
 
@@ -419,92 +460,68 @@ export function logoutUser(): void {
 
 // Auth API Calls
 export async function loginUser(email: string, password: string): Promise<{ access_token: string; user: AuthUser }> {
-  try {
-    const res = await request<{ access_token: string; user: AuthUser }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    if (res.access_token) {
-      setAuthToken(res.access_token);
-      setStoredUser(res.user);
-    }
-    return res;
-  } catch {
-    const mockToken = `bv_user_token_${Date.now()}`;
-    const user: AuthUser = {
-      id: `user_${Date.now()}`,
-      email,
-      name: email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Business User',
-      company: 'My Business',
-      role: 'admin',
-      tier: 'pro_unlimited',
-      credits: 120,
-    };
-    setAuthToken(mockToken);
-    setStoredUser(user);
-    return { access_token: mockToken, user };
+  const res = await request<{ access_token: string; user: AuthUser }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  if (res.access_token) {
+    setAuthToken(res.access_token);
+    setStoredUser(res.user);
   }
+  return res;
 }
 
 export async function registerUser(email: string, password: string, name: string, company?: string): Promise<{ access_token: string; user: AuthUser }> {
-  try {
-    const res = await request<{ access_token: string; user: AuthUser }>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name, company: company || 'My Business' }),
-    });
-    if (res.access_token) {
-      setAuthToken(res.access_token);
-      setStoredUser(res.user);
-    }
-    return res;
-  } catch {
-    const mockToken = `bv_user_token_${Date.now()}`;
-    const user: AuthUser = {
-      id: `user_${Date.now()}`,
-      email,
-      name: name || email.split('@')[0],
-      company: company || 'My Business',
-      role: 'developer',
-      tier: 'pro_unlimited',
-      credits: 120,
-    };
-    setAuthToken(mockToken);
-    setStoredUser(user);
-    return { access_token: mockToken, user };
+  const res = await request<{ access_token: string; user: AuthUser }>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, name, company: company || 'My Business' }),
+  });
+  if (res.access_token) {
+    setAuthToken(res.access_token);
+    setStoredUser(res.user);
   }
+  return res;
+}
+
+export async function signInWithGoogleOAuth(): Promise<{ error: any }> {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${origin}/auth/callback/`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  });
+  return { error };
+}
+
+export async function syncGoogleUser(
+  email: string,
+  name: string,
+  avatar?: string,
+  supabaseUid?: string
+): Promise<{ access_token: string; user: AuthUser }> {
+  const res = await request<{ access_token: string; user: AuthUser }>('/api/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      name,
+      avatar: avatar || '',
+      supabase_uid: supabaseUid || null,
+    }),
+  });
+  if (res.access_token) {
+    setAuthToken(res.access_token);
+    setStoredUser(res.user);
+  }
+  return res;
 }
 
 export async function googleLogin(email?: string, name?: string, avatar?: string): Promise<{ access_token: string; user: AuthUser }> {
-  const userEmail = email || 'omkhade75@gmail.com';
-  const userName = name || 'Om Khade';
-  const userAvatar = avatar || 'https://lh3.googleusercontent.com/a/default-user=s96-c';
-
-  try {
-    const res = await request<{ access_token: string; user: AuthUser }>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ email: userEmail, name: userName, avatar: userAvatar }),
-    });
-    if (res.access_token) {
-      setAuthToken(res.access_token);
-      setStoredUser(res.user);
-    }
-    return res;
-  } catch {
-    const mockToken = `bv_google_token_${Date.now()}`;
-    const user: AuthUser = {
-      id: `google_${Date.now()}`,
-      email: userEmail,
-      name: userName,
-      company: 'Google Workspace Connected',
-      role: 'developer',
-      tier: 'pro_unlimited',
-      credits: 120,
-      avatar: userAvatar,
-    };
-    setAuthToken(mockToken);
-    setStoredUser(user);
-    return { access_token: mockToken, user };
-  }
+  return syncGoogleUser(email || 'user@example.com', name || 'Business User', avatar);
 }
 
 export async function getCurrentUser(): Promise<AuthUser> {
@@ -679,23 +696,39 @@ export async function deleteAgent(id: string): Promise<void> {
   }
 }
 
+export async function duplicateAgent(id: string): Promise<Agent> {
+  return await request(`/api/agents/${id}/duplicate`, { method: 'POST' });
+}
+
+export async function publishAgent(id: string): Promise<Agent> {
+  return await request(`/api/agents/${id}/publish`, { method: 'POST' });
+}
+
+export async function saveUserSettings(data: { gemini_api_key?: string; elevenlabs_api_key?: string }): Promise<any> {
+  return await request('/api/settings/keys', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getUserSettings(): Promise<any> {
+  return await request('/api/settings/keys');
+}
+
 // Calls & History
 export async function getCalls(): Promise<Call[]> {
   try {
     const remote = await request<Call[]>('/api/calls');
-    if (Array.isArray(remote) && remote.length > 0) return remote;
-  } catch {
-    // fallback
-  }
-  return DEFAULT_SEED_CALLS;
+    if (Array.isArray(remote)) return remote;
+  } catch {}
+  return [];
 }
 
-export async function getCall(id: string): Promise<Call> {
+export async function getCall(id: string): Promise<Call | null> {
   try {
-    return await request(`/api/calls/${id}`);
+    return await request<Call>(`/api/calls/${id}`);
   } catch {
-    const calls = await getCalls();
-    return calls.find((c) => c.id === id) || DEFAULT_SEED_CALLS[0];
+    return null;
   }
 }
 
@@ -751,22 +784,9 @@ export async function askCopilot(query: string, history?: Array<{ role: string; 
 export async function getPhoneNumbers(): Promise<PhoneNumber[]> {
   try {
     const remote = await request<PhoneNumber[]>('/api/telephony/numbers');
-    if (Array.isArray(remote) && remote.length > 0) return remote;
-  } catch {
-    // fallback
-  }
-
-  if (typeof window !== 'undefined') {
-    const local = localStorage.getItem('bv_telephony_numbers');
-    if (local) {
-      try {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
-    }
-    localStorage.setItem('bv_telephony_numbers', JSON.stringify(DEFAULT_SEED_NUMBERS));
-  }
-  return DEFAULT_SEED_NUMBERS;
+    if (Array.isArray(remote)) return remote;
+  } catch {}
+  return [];
 }
 
 export async function queryTwilioNumbers(
@@ -978,27 +998,16 @@ export const DEFAULT_SEED_CAMPAIGNS: Campaign[] = [
 export async function getCampaigns(): Promise<Campaign[]> {
   try {
     const res = await request<Campaign[]>('/api/campaigns');
-    if (Array.isArray(res) && res.length > 0) return res;
+    if (Array.isArray(res)) return res;
   } catch {}
-  if (typeof window !== 'undefined') {
-    const local = localStorage.getItem('bv_campaigns');
-    if (local) {
-      try {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
-    }
-    localStorage.setItem('bv_campaigns', JSON.stringify(DEFAULT_SEED_CAMPAIGNS));
-  }
-  return DEFAULT_SEED_CAMPAIGNS;
+  return [];
 }
 
-export async function getCampaign(id: string): Promise<Campaign> {
+export async function getCampaign(id: string): Promise<Campaign | null> {
   try {
     return await request<Campaign>(`/api/campaigns/${id}`);
   } catch {
-    const list = await getCampaigns();
-    return list.find((c) => c.id === id) || DEFAULT_SEED_CAMPAIGNS[0];
+    return null;
   }
 }
 

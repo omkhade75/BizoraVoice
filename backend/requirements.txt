@@ -35,6 +35,7 @@ numpy==2.2.1
 # CORS & Security
 python-dotenv==1.0.1
 PyJWT==2.10.1
+cryptography>=42.0.0
 
 # Logging
 structlog==24.4.0

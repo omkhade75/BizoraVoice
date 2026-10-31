@@ -4,9 +4,9 @@ Async database connection and session management for Bizora Voice.
 
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from config import get_settings
-from database.models import Base, Agent, User, ApiKey
+from database.models import Base, Agent, User, ApiKey, Workspace, WorkspaceMember, Evaluation
 from core.security import hash_password, hash_api_key
 
 settings = get_settings()
@@ -14,6 +14,9 @@ settings = get_settings()
 connect_args = {}
 if "postgresql" in settings.database_url:
     connect_args["ssl"] = "require"
+    connect_args["statement_cache_size"] = 0
+    connect_args["timeout"] = 30.0
+    connect_args["command_timeout"] = 30.0
 
 engine = create_async_engine(
     settings.database_url,
@@ -21,6 +24,9 @@ engine = create_async_engine(
     echo=settings.debug,
     future=True,
     pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=5,
+    pool_recycle=300,
 )
 
 async_session_factory = async_sessionmaker(
@@ -40,8 +46,30 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db():
-    """Initialize database tables and seed default users, API keys, and voice agents."""
+    """Initialize database tables, run incremental column migrations, and seed default records."""
     async with engine.begin() as conn:
+        # Safe column migrations for PostgreSQL
+        if "postgresql" in settings.database_url:
+            stmts = [
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS provider VARCHAR(50) DEFAULT 'ollama';",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS version VARCHAR(20) DEFAULT 'v1.0.0';",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS silence_timeout_ms INTEGER DEFAULT 2000;",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS tools_config TEXT DEFAULT '[]';",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS knowledge_base_id VARCHAR(36);",
+                "ALTER TABLE phone_numbers ADD COLUMN IF NOT EXISTS account_sid VARCHAR(100);",
+                "ALTER TABLE phone_numbers ADD COLUMN IF NOT EXISTS encrypted_auth_token TEXT;",
+                "ALTER TABLE phone_numbers ADD COLUMN IF NOT EXISTS country_code VARCHAR(10) DEFAULT '+1';",
+                "ALTER TABLE phone_numbers ADD COLUMN IF NOT EXISTS sms_enabled BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS stt_ms INTEGER DEFAULT 120;",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS llm_ms INTEGER DEFAULT 180;",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tts_ms INTEGER DEFAULT 80;",
+            ]
+            for s in stmts:
+                try:
+                    await conn.execute(text(s))
+                except Exception:
+                    pass
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session_factory() as session:
@@ -75,6 +103,23 @@ async def init_db():
                 is_active=True,
             )
             session.add(api_key)
+            await session.flush()
+
+            # Seed Default Workspace
+            default_ws = Workspace(
+                id="default-workspace-admin",
+                name="Default Production Workspace",
+                owner_id=admin_user.id,
+                tier="enterprise",
+            )
+            session.add(default_ws)
+            ws_member = WorkspaceMember(
+                id="default-member-admin",
+                workspace_id=default_ws.id,
+                user_id=admin_user.id,
+                role="owner",
+            )
+            session.add(ws_member)
         else:
             admin_user = users[0]
 
@@ -83,6 +128,22 @@ async def init_db():
         agents = agent_result.scalars().all()
         if not agents:
             agents_to_seed = [
+                Agent(
+                    id="taj-hotel",
+                    user_id=admin_user.id if admin_user else None,
+                    name="Taj Residency Front Desk & Concierge",
+                    description="Hotel concierge and room reservation AI assistant with real-time room availability booking.",
+                    system_prompt=(
+                        "You are the Concierge at Taj Residency Mumbai. "
+                        "Greet guests politely with 'Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?'. "
+                        "Speak in fluent, elegant English or Hindi as requested. Keep responses under 2 sentences for phone clarity."
+                    ),
+                    voice="en-IN-NeerjaNeural",
+                    model=settings.ollama_model,
+                    language="en",
+                    greeting_message="Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?",
+                    is_public=True,
+                ),
                 Agent(
                     id="marathi-supplier-agent",
                     user_id=admin_user.id if admin_user else None,
@@ -151,5 +212,59 @@ async def init_db():
                 ),
             ]
             session.add_all(agents_to_seed)
+        else:
+            # Ensure taj-hotel exists if other agents were already seeded
+            taj_agent = await session.get(Agent, "taj-hotel")
+            if not taj_agent:
+                session.add(
+                    Agent(
+                        id="taj-hotel",
+                        user_id=admin_user.id if admin_user else None,
+                        name="Taj Residency Front Desk & Concierge",
+                        description="Hotel concierge and room reservation AI assistant with real-time room availability booking.",
+                        system_prompt=(
+                            "You are the Concierge at Taj Residency Mumbai. "
+                            "Greet guests politely with 'Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?'. "
+                            "Speak in fluent, elegant English or Hindi as requested. Keep responses under 2 sentences for phone clarity."
+                        ),
+                        voice="en-IN-NeerjaNeural",
+                        model=settings.ollama_model,
+                        language="en",
+                        greeting_message="Namaste! Welcome to Taj Residency. How may I assist you with your reservation today?",
+                        is_public=True,
+                    )
+                )
+
+        # 3. Seed Default Evaluations if they do not exist
+        import json
+        default_eval_items = [
+            {
+                "id": "eval-inbound-greeting",
+                "name": "Inbound Politeness & Intent Verification",
+                "rubric": json.dumps([
+                    {"criterion": "Polite greeting in customer preferred language (Marathi/Hindi)", "weight": 1.0},
+                    {"criterion": "Accurate intent capture without conversational loop", "weight": 1.0},
+                    {"criterion": "Clear next step or confirmed appointment given", "weight": 1.0},
+                ]),
+            },
+            {
+                "id": "eval-supplier-quote",
+                "name": "APMC Onion Pricing & Quantity Compliance",
+                "rubric": json.dumps([
+                    {"criterion": "Quotes correct mandi price range", "weight": 1.0},
+                    {"criterion": "Confirms vehicle freight and delivery timeline", "weight": 1.0},
+                    {"criterion": "Avoids hallucinations on payment credit terms", "weight": 1.0},
+                ]),
+            },
+        ]
+        for item in default_eval_items:
+            existing_eval = await session.get(Evaluation, item["id"])
+            if not existing_eval:
+                session.add(Evaluation(
+                    id=item["id"],
+                    user_id=admin_user.id if admin_user else None,
+                    name=item["name"],
+                    rubric=item["rubric"],
+                ))
 
         await session.commit()

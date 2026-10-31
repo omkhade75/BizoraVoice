@@ -23,6 +23,10 @@ services:
           type: web
           name: bizora-voice-backend
           property: host
+      - key: SUPABASE_URL
+        value: https://vsmlvtrwgkpwxwhatbhx.supabase.co
+      - key: SUPABASE_KEY
+        value: sb_publishable_rbGRKU6uSNzFJBZNBxPnbQ_QjdNbWVZ
 
   # ── Vaani Voice Static Frontend (Instant Global CDN, Zero Cold Starts) ───
   - type: static
@@ -38,5 +42,9 @@ services:
           type: web
           name: bizora-voice-backend
           property: host
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vsmlvtrwgkpwxwhatbhx.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: sb_publishable_rbGRKU6uSNzFJBZNBxPnbQ_QjdNbWVZ
 
 

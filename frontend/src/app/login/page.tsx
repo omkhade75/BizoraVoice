@@ -15,7 +15,7 @@ import {
   Check,
 } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';
-import { loginUser, registerUser, googleLogin, AuthUser } from '@/lib/api';
+import { loginUser, registerUser, signInWithGoogleOAuth, AuthUser } from '@/lib/api';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -30,14 +30,8 @@ function LoginFormContent() {
   const [company, setCompany] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showGooglePicker, setShowGooglePicker] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successUser, setSuccessUser] = useState<AuthUser | null>(null);
-
-  const GOOGLE_ACCOUNTS = [
-    { email: 'omkhade75@gmail.com', name: 'Om Khade', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces' },
-    { email: 'founder@mybusiness.in', name: 'Business Founder', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces' },
-  ];
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,38 +55,36 @@ function LoginFormContent() {
     }
   };
 
-  const handleGoogleAuth = async (selectedEmail?: string, selectedName?: string) => {
+  const handleGoogleAuth = async () => {
     setErrorMsg(null);
     setGoogleLoading(true);
 
     try {
-      const res = await googleLogin(selectedEmail, selectedName);
-      setSuccessUser(res.user);
-      setShowGooglePicker(false);
-      setTimeout(() => {
-        router.push('/agents');
-      }, 800);
+      const { error } = await signInWithGoogleOAuth();
+      if (error) {
+        throw error;
+      }
+      // Browser redirects to Google OAuth
     } catch (err: any) {
-      setErrorMsg(err.message || 'Google authentication failed.');
+      setErrorMsg(err.message || 'Google authentication failed to initialize.');
       setGoogleLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:flex-row relative overflow-hidden select-none">
+    <div className="min-h-screen bg-obsidian-canvas text-text-primary flex flex-col lg:flex-row relative overflow-hidden select-none">
       {/* Top Left Navigation Back */}
       <Link
         href="/"
-        className="absolute top-6 left-6 z-40 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-zinc-100 transition shadow-sm backdrop-blur"
+        className="absolute top-6 left-6 z-40 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-obsidian-surface hover:bg-obsidian-elevated border border-border-subtle text-xs font-semibold text-text-secondary hover:text-text-primary transition shadow-xs backdrop-blur"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Home</span>
       </Link>
 
       {/* LEFT COLUMN: Hero Pitch & Credentials (Desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-950 p-12 lg:p-16 flex-col justify-between border-r border-zinc-800/80 relative">
-        {/* Background glow */}
-        <div className="absolute top-1/4 left-1/4 -z-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="hidden lg:flex lg:w-1/2 bg-obsidian-surface/60 p-12 lg:p-16 flex-col justify-between border-r border-border-subtle relative">
+        <div className="absolute top-1/4 left-1/4 -z-10 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Brand Header */}
         <div className="pt-8">
@@ -101,39 +93,39 @@ function LoginFormContent() {
 
         {/* Core Value Pitch */}
         <div className="space-y-6 max-w-lg my-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-mono font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Sovereign Voice Telephony • Zero Cloud Taxes</span>
+            <span>Sovereign Voice Telephony • Sub-329ms</span>
           </div>
 
-          <h2 className="text-3xl lg:text-4xl font-extrabold text-zinc-100 leading-tight">
-            Stop paying \$0.20/minute for American voice AI wrappers.
+          <h2 className="text-3xl lg:text-4xl font-bold text-text-primary leading-tight">
+            Stop paying \$0.20/minute for American cloud wrappers.
           </h2>
 
-          <p className="text-sm text-zinc-400 leading-relaxed">
+          <p className="text-sm text-text-secondary leading-relaxed">
             Deploy self-hosted AI receptionists fluent in Marathi, Hindi, Gujarati, and English with direct 4G VoLTE SIM connectivity and 1-click Twilio number imports.
           </p>
 
-          <div className="space-y-3 pt-3 border-t border-zinc-800/80">
-            <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>100% Free Bulk Outbound Dialer with zero OTP blocks</span>
+          <div className="space-y-3 pt-3 border-t border-border-subtle">
+            <div className="flex items-center gap-2.5 text-xs text-text-secondary">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Free Bulk Outbound Dialer with zero OTP blocks</span>
             </div>
-            <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Sub-400ms conversational turnarounds with Silero VAD</span>
+            <div className="flex items-center gap-2.5 text-xs text-text-secondary">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Sub-329ms conversational turnarounds with Silero VAD</span>
             </div>
-            <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="flex items-center gap-2.5 text-xs text-text-secondary">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
               <span>Bring your own Twilio numbers or Jio ₹299/mo unlimited SIM</span>
             </div>
           </div>
         </div>
 
         {/* Bottom Trust Stamp */}
-        <div className="flex items-center justify-between text-xs text-zinc-500 font-mono pt-6 border-t border-zinc-800/60">
-          <span>SECURE AUTHENTICATION</span>
-          <span className="text-emerald-400 font-semibold">SOVEREIGN ENCRYPTION</span>
+        <div className="flex items-center justify-between text-xs text-text-tertiary font-mono pt-6 border-t border-border-subtle">
+          <span>SECURE SUPABASE AUTH</span>
+          <span className="text-amber-500 font-semibold">SOVEREIGN POSTGRES</span>
         </div>
       </div>
 
@@ -146,27 +138,27 @@ function LoginFormContent() {
           </div>
 
           {/* Main Card */}
-          <div className="p-7 sm:p-8 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-2xl space-y-6">
+          <div className="p-7 sm:p-8 rounded-2xl bg-obsidian-surface border border-border-subtle shadow-xl space-y-6">
             {/* Header & Mode Switcher */}
             <div className="space-y-3 text-center">
-              <h1 className="text-2xl font-extrabold text-zinc-100 tracking-tight">
-                {mode === 'signup' ? 'Get Started for Free' : 'Welcome to Vaani Voice'}
+              <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+                {mode === 'signup' ? 'Get Started for Free' : 'Sign in to Studio'}
               </h1>
-              <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+              <p className="text-xs text-text-secondary max-w-xs mx-auto">
                 {mode === 'signup'
                   ? 'Create your free account. No credit card required.'
-                  : 'Sign in to access your AI receptionists and phone dialer'}
+                  : 'Access your AI assistants, squads, and phone dialer'}
               </p>
 
               {/* Mode Toggle Buttons */}
-              <div className="grid grid-cols-2 p-1 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-semibold">
+              <div className="grid grid-cols-2 p-1 rounded-xl bg-obsidian-elevated border border-border-subtle text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setMode('login')}
                   className={`py-2 rounded-lg transition ${
                     mode === 'login'
-                      ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-obsidian-surface text-text-primary shadow-xs font-bold'
+                      : 'text-text-tertiary hover:text-text-primary'
                   }`}
                 >
                   Sign In
@@ -176,8 +168,8 @@ function LoginFormContent() {
                   onClick={() => setMode('signup')}
                   className={`py-2 rounded-lg transition ${
                     mode === 'signup'
-                      ? 'bg-emerald-500 text-zinc-950 font-bold shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-amber-500 text-obsidian-canvas font-bold shadow-xs'
+                      : 'text-text-tertiary hover:text-text-primary'
                   }`}
                 >
                   Get Started Free
@@ -187,34 +179,34 @@ function LoginFormContent() {
 
             {/* ERROR ALERT */}
             {errorMsg && (
-              <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-300">
+              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-xs text-red-400 font-mono">
                 {errorMsg}
               </div>
             )}
 
             {/* SUCCESS BANNER */}
             {successUser && (
-              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-300 flex items-center gap-3">
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                   <Check className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="font-bold">Welcome, {successUser.name}!</div>
-                  <div className="text-[11px] text-emerald-400/80">Redirecting to your voice dashboard...</div>
+                  <div className="text-[11px] text-emerald-400/80">Redirecting to your voice studio...</div>
                 </div>
               </div>
             )}
 
-            {/* 1. CONTINUE WITH GOOGLE (Primary Action) */}
-            <div className="space-y-2">
+            {/* 1. CONTINUE WITH GOOGLE */}
+            <div>
               <button
                 type="button"
-                onClick={() => setShowGooglePicker(!showGooglePicker)}
+                onClick={handleGoogleAuth}
                 disabled={googleLoading || loading || !!successUser}
-                className="w-full py-3.5 px-4 rounded-xl border border-zinc-700/80 hover:border-zinc-500 bg-zinc-950 hover:bg-zinc-850 text-zinc-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all shadow-md group cursor-pointer disabled:opacity-50"
+                className="w-full py-3 px-4 rounded-xl border border-border-subtle hover:border-border-medium bg-obsidian-elevated hover:bg-obsidian-hover text-text-primary font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all shadow-xs disabled:opacity-50 active:scale-[0.99] cursor-pointer"
               >
                 {googleLoading ? (
-                  <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path
@@ -237,76 +229,47 @@ function LoginFormContent() {
                 )}
                 <span>Continue with Google</span>
               </button>
-
-              {/* Google Account Selector Dropdown Simulator */}
-              {showGooglePicker && (
-                <div className="p-3 rounded-2xl bg-zinc-950 border border-zinc-700 shadow-xl space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <span className="text-[10px] font-mono font-semibold text-zinc-400 px-2 uppercase">
-                    Choose a Google Account
-                  </span>
-                  <div className="space-y-1">
-                    {GOOGLE_ACCOUNTS.map((acc) => (
-                      <button
-                        key={acc.email}
-                        type="button"
-                        onClick={() => handleGoogleAuth(acc.email, acc.name)}
-                        className="w-full p-2.5 rounded-xl hover:bg-zinc-900 border border-transparent hover:border-zinc-800 flex items-center gap-3 text-left transition"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
-                          {acc.name[0]}
-                        </div>
-                        <div className="truncate">
-                          <div className="text-xs font-bold text-zinc-200">{acc.name}</div>
-                          <div className="text-[11px] text-zinc-400 truncate">{acc.email}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* DIVIDER */}
-            <div className="relative flex items-center justify-center">
-              <div className="w-full border-t border-zinc-800" />
-              <span className="absolute px-3 bg-zinc-900 text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
-                Or with business email
-              </span>
+            <div className="flex items-center gap-3 text-xs text-text-tertiary">
+              <div className="h-px bg-border-subtle flex-1" />
+              <span>or with email</span>
+              <div className="h-px bg-border-subtle flex-1" />
             </div>
 
-            {/* 2. EMAIL / PASSWORD FORM */}
+            {/* 2. EMAIL FORM */}
             <form onSubmit={handleEmailAuth} className="space-y-3.5">
               {mode === 'signup' && (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-semibold text-text-secondary mb-1">
                       Full Name
                     </label>
                     <div className="relative">
-                      <UserIcon className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <UserIcon className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
                       <input
                         type="text"
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Ramesh Patil"
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        placeholder="Om Khade"
+                        className="w-full pl-9 pr-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
-                      Business or Organization
+                    <label className="block text-xs font-semibold text-text-secondary mb-1">
+                      Company / Organization
                     </label>
                     <div className="relative">
-                      <Building className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <Building className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
                       <input
                         type="text"
                         value={company}
                         onChange={(e) => setCompany(e.target.value)}
-                        placeholder="e.g. Patil Healthcare & Clinic"
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        placeholder="Bizora Logistics"
+                        className="w-full pl-9 pr-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                   </div>
@@ -314,59 +277,48 @@ function LoginFormContent() {
               )}
 
               <div>
-                <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@business.com"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                    placeholder="om@company.in"
+                    className="w-full pl-9 pr-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-text-tertiary absolute left-3 top-2.5" />
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                    placeholder="••••••••••••"
+                    className="w-full pl-9 pr-3 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                disabled={loading || googleLoading || !!successUser}
-                className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-950/50 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                disabled={loading || !!successUser}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
               >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>{mode === 'signup' ? 'Create Free Account' : 'Sign In to Workspace'}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+                <span>{loading ? 'Authenticating...' : mode === 'signup' ? 'Create Account' : 'Sign In'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </form>
-
-            {/* Bottom Disclaimer */}
-            <div className="pt-2 text-center text-[11px] text-zinc-500 leading-relaxed">
-              By continuing, you agree to self-hosted deployment terms. No third-party API keys required.
-            </div>
           </div>
         </div>
       </div>
@@ -376,14 +328,7 @@ function LoginFormContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-zinc-950 text-zinc-400 flex items-center justify-center text-sm font-medium">
-          <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mr-3" />
-          Loading workspace portal...
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="min-h-screen bg-obsidian-canvas" />}>
       <LoginFormContent />
     </Suspense>
   );

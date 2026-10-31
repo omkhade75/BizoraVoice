@@ -19,8 +19,8 @@ interface Message {
 const QUICK_PROMPTS = [
   'How do I add a Marathi voice agent for suppliers?',
   'Show Python code to start a voice call using API key',
-  'How does Vaani Voice save $ vs Vapi.ai?',
-  'How to send an automated voice note email to a supplier?',
+  'How does BizoraVoice save cost vs Vapi.ai?',
+  'How to configure Twilio BYOT phone numbers?',
 ];
 
 export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
@@ -28,7 +28,7 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
     {
       role: 'assistant',
       content:
-        '👋 Welcome to **Vaani Voice Copilot**! I am your local AI assistant. I can help you configure agents in regional Asian languages (Marathi, Hindi, Gujarati, etc.), generate API integration code (cURL, Python, React), and explain self-hosting cost savings. How can I help you today?',
+        '👋 Welcome to **BizoraVoice Copilot**! I am your AI platform assistant. I can help you configure agents in regional Indian languages (Marathi, Hindi, Gujarati, English), generate API code, set up Twilio BYOT, and optimize your 329ms voice pipeline. How can I assist you today?',
       timestamp: 'Just now',
     },
   ]);
@@ -69,7 +69,7 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
         ...prev,
         {
           role: 'assistant',
-          content: `⚠️ Error fetching response: ${err.message || 'Make sure Ollama is running on localhost:11434'}`,
+          content: `⚠️ Error fetching response: ${err.message || 'Make sure backend is running on localhost:8000'}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -87,26 +87,26 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] bg-zinc-950 border-l border-zinc-800 shadow-2xl flex flex-col backdrop-blur-md">
+    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] bg-obsidian-surface border-l border-border-subtle shadow-2xl flex flex-col backdrop-blur-md transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/60">
+      <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-obsidian-elevated/50">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-semibold text-zinc-100 text-sm flex items-center gap-1.5">
-              Vaani Voice Copilot
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                LOCAL AI
+            <h3 className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
+              Bizora Voice Copilot
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-mono">
+                AI ASSIST
               </span>
             </h3>
-            <p className="text-xs text-zinc-400">Your self-hosted voice advisor</p>
+            <p className="text-xs text-text-tertiary">Architecture & Telephony Guidance</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+          className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-obsidian-elevated transition"
         >
           <X className="w-5 h-5" />
         </button>
@@ -117,37 +117,37 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`flex gap-3 text-xs leading-relaxed ${
+            className={`flex gap-2.5 text-xs leading-relaxed ${
               msg.role === 'user' ? 'justify-end' : 'justify-start'
             }`}
           >
             {msg.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
                 <Bot className="w-3.5 h-3.5" />
               </div>
             )}
 
             <div
-              className={`max-w-[85%] rounded-2xl p-3.5 space-y-2.5 ${
+              className={`max-w-[85%] rounded-xl p-3.5 space-y-2.5 shadow-xs ${
                 msg.role === 'user'
-                  ? 'bg-emerald-600 text-white rounded-tr-xs'
-                  : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-tl-xs'
+                  ? 'bg-amber-500 text-obsidian-canvas font-medium rounded-br-none'
+                  : 'bg-obsidian-elevated border border-border-subtle text-text-primary rounded-bl-none'
               }`}
             >
               <div className="whitespace-pre-wrap">{msg.content}</div>
 
               {msg.codeSnippet && (
-                <div className="mt-2 rounded-lg bg-zinc-950 border border-zinc-800 overflow-hidden text-[11px] font-mono">
-                  <div className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-900/80 border-b border-zinc-800 text-zinc-400">
+                <div className="mt-2 rounded-lg bg-obsidian-canvas border border-border-subtle overflow-hidden text-[11px] font-mono">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 bg-obsidian-elevated border-b border-border-subtle text-text-secondary">
                     <span>Code Snippet</span>
                     <button
                       onClick={() => copyToClipboard(msg.codeSnippet!)}
-                      className="flex items-center gap-1 hover:text-zinc-200"
+                      className="flex items-center gap-1 hover:text-amber-500"
                     >
                       {copiedCode === msg.codeSnippet ? (
                         <>
-                          <Check className="w-3 h-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied</span>
+                          <Check className="w-3 h-3 text-emerald-500" />
+                          <span className="text-emerald-500">Copied</span>
                         </>
                       ) : (
                         <>
@@ -157,13 +157,13 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
                       )}
                     </button>
                   </div>
-                  <pre className="p-2.5 text-zinc-300 overflow-x-auto">{msg.codeSnippet}</pre>
+                  <pre className="p-2.5 text-text-secondary overflow-x-auto">{msg.codeSnippet}</pre>
                 </div>
               )}
 
               <div
-                className={`text-[10px] text-right ${
-                  msg.role === 'user' ? 'text-emerald-200' : 'text-zinc-500'
+                className={`text-[10px] text-right font-mono ${
+                  msg.role === 'user' ? 'text-obsidian-canvas/80' : 'text-text-tertiary'
                 }`}
               >
                 {msg.timestamp}
@@ -171,7 +171,7 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
             </div>
 
             {msg.role === 'user' && (
-              <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0 mt-0.5">
+              <div className="w-7 h-7 rounded-lg bg-obsidian-elevated border border-border-subtle text-text-secondary flex items-center justify-center shrink-0 mt-0.5">
                 <User className="w-3.5 h-3.5" />
               </div>
             )}
@@ -179,15 +179,15 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
         ))}
 
         {loading && (
-          <div className="flex gap-3 text-xs justify-start items-center text-zinc-400">
-            <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-amber-400 shrink-0">
+          <div className="flex gap-2.5 text-xs justify-start items-center text-text-secondary">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
               <Bot className="w-3.5 h-3.5 animate-pulse" />
             </div>
-            <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" />
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce [animation-delay:0.2s]" />
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce [animation-delay:0.4s]" />
-              <span className="text-zinc-400 ml-1">Copilot is thinking...</span>
+            <div className="flex items-center gap-1.5 p-3 rounded-xl bg-obsidian-elevated border border-border-subtle font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse delay-150" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse delay-300" />
+              <span className="text-text-tertiary ml-1">Copilot reasoning...</span>
             </div>
           </div>
         )}
@@ -195,10 +195,10 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Prompts */}
-      <div className="px-3 py-2 border-t border-zinc-800/60 bg-zinc-900/30">
-        <div className="text-[11px] text-zinc-400 font-medium mb-1.5 flex items-center gap-1">
-          <HelpCircle className="w-3 h-3 text-amber-400" />
+      {/* Suggested Quick Prompts */}
+      <div className="px-3 py-2 border-t border-border-subtle bg-obsidian-elevated/30">
+        <div className="text-[11px] text-text-tertiary font-mono mb-1.5 flex items-center gap-1">
+          <HelpCircle className="w-3 h-3 text-amber-500" />
           Suggested queries:
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -206,17 +206,17 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
             <button
               key={idx}
               onClick={() => handleSend(prompt)}
-              className="text-[11px] px-2.5 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 hover:border-zinc-700 transition flex items-center gap-1 text-left"
+              className="text-[11px] px-2.5 py-1 rounded-full bg-obsidian-elevated hover:bg-obsidian-hover text-text-secondary hover:text-text-primary border border-border-subtle transition flex items-center gap-1 text-left"
             >
               <span>{prompt}</span>
-              <ArrowRight className="w-2.5 h-2.5 text-zinc-500" />
+              <ArrowRight className="w-2.5 h-2.5 text-text-tertiary" />
             </button>
           ))}
         </div>
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-zinc-800 bg-zinc-950">
+      <div className="p-3 border-t border-border-subtle bg-obsidian-surface">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -228,13 +228,13 @@ export function CopilotDrawer({ isOpen, onClose }: CopilotDrawerProps) {
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask Copilot about Marathi prompts, API keys, or pricing..."
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40"
+            placeholder="Ask about Marathi prompts, API keys, or pricing..."
+            className="flex-1 bg-obsidian-elevated border border-border-subtle rounded-xl px-3.5 py-2 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/40"
           />
           <button
             type="submit"
             disabled={!inputValue.trim() || loading}
-            className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-40 disabled:hover:bg-emerald-600 transition shadow-sm"
+            className="p-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-semibold disabled:opacity-40 transition shadow-xs"
           >
             <Send className="w-4 h-4" />
           </button>

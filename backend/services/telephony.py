@@ -33,6 +33,8 @@ class TelephonyService:
         session_id: Optional[str] = None,
         provider: str = "simulation",
         variables: Optional[Dict[str, Any]] = None,
+        account_sid: Optional[str] = None,
+        auth_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Initiate an outbound call to a recipient phone number.
@@ -44,21 +46,27 @@ class TelephonyService:
         logger.info(f"Initiating outbound call to {to_number} via [{provider}] (Caller: {caller})")
 
         if provider == "twilio":
-            return await TelephonyService._dial_twilio(to_number, caller, sid)
+            return await TelephonyService._dial_twilio(to_number, caller, sid, account_sid, auth_token)
         elif provider == "sip_gsm":
             return await TelephonyService._dial_sip_gsm(to_number, caller, sid)
         else:
             return await TelephonyService._dial_simulation(to_number, caller, sid, agent_id, variables)
 
     @staticmethod
-    async def _dial_twilio(to_number: str, from_number: str, session_id: str) -> Dict[str, Any]:
-        """Dial via Twilio REST API with bi-directional Media Stream TwiML."""
-        acc_sid = settings.twilio_account_sid
-        auth_token = settings.twilio_auth_token
+    async def _dial_twilio(
+        to_number: str,
+        from_number: str,
+        session_id: str,
+        account_sid: Optional[str] = None,
+        auth_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Dial via Twilio REST API with bi-directional Media Stream TwiML using tenant or global credentials."""
+        acc_sid = account_sid or settings.twilio_account_sid
+        tok = auth_token or settings.twilio_auth_token
         base_url = settings.public_base_url.replace("http://", "ws://").replace("https://", "wss://")
         stream_ws = f"{base_url}/ws/call/{session_id}"
 
-        if not acc_sid or not auth_token:
+        if not acc_sid or not tok:
             logger.warning("Twilio credentials not configured; falling back to safe local simulation.")
             return {
                 "success": True,
@@ -84,7 +92,7 @@ class TelephonyService:
         }
 
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(url, data=data, auth=(acc_sid, auth_token))
+            resp = await client.post(url, data=data, auth=(acc_sid, tok))
             if resp.status_code in (200, 201):
                 res_data = resp.json()
                 return {

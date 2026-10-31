@@ -13,8 +13,8 @@ export function StatusBadge({ state, isMuted = false }: StatusBadgeProps) {
     if (isMuted && state === 'listening') {
       return {
         label: 'Muted',
-        bg: 'bg-zinc-800/80 text-zinc-300 border-zinc-700',
-        dot: 'bg-zinc-500',
+        bg: 'bg-obsidian-elevated text-text-tertiary border-border-subtle',
+        dot: 'bg-text-tertiary',
         ping: false,
       };
     }
@@ -22,31 +22,31 @@ export function StatusBadge({ state, isMuted = false }: StatusBadgeProps) {
     switch (state) {
       case 'listening':
         return {
-          label: 'Listening...',
-          bg: 'bg-amber-950/40 text-amber-300 border-amber-800/50',
-          dot: 'bg-amber-400',
+          label: 'Listening (VAD Active)',
+          bg: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+          dot: 'bg-sky-400',
           ping: true,
         };
       case 'thinking':
         return {
-          label: 'AI Thinking...',
-          bg: 'bg-amber-900/30 text-amber-200 border-amber-700/40',
-          dot: 'bg-amber-400',
+          label: 'Reasoning (LLM Stream)',
+          bg: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+          dot: 'bg-purple-400',
           ping: true,
         };
       case 'speaking':
         return {
-          label: 'AI Speaking...',
-          bg: 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50',
+          label: 'AI Speaking (Neural TTS)',
+          bg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
           dot: 'bg-emerald-400',
           ping: true,
         };
       case 'idle':
       default:
         return {
-          label: 'Ready to Call',
-          bg: 'bg-zinc-900 text-zinc-400 border-zinc-800',
-          dot: 'bg-zinc-500',
+          label: 'Voice Core Standby',
+          bg: 'bg-obsidian-elevated text-text-secondary border-border-subtle',
+          dot: 'bg-amber-500',
           ping: false,
         };
     }
@@ -56,7 +56,7 @@ export function StatusBadge({ state, isMuted = false }: StatusBadgeProps) {
 
   return (
     <div
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium tracking-wide transition-all shadow-sm ${config.bg}`}
+      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono font-medium tracking-wide transition-all shadow-xs ${config.bg}`}
     >
       <span className="relative flex h-2 w-2">
         {config.ping && (

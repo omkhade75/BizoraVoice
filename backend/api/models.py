@@ -3,8 +3,8 @@ Pydantic schemas for Bizora Voice REST and WebSocket APIs.
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Auth & User Models ──────────────────────────────────────────────────
@@ -25,6 +25,7 @@ class GoogleAuthRequest(BaseModel):
     name: str = Field(..., min_length=1)
     avatar: Optional[str] = None
     credential: Optional[str] = None
+    supabase_uid: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -73,11 +74,17 @@ class AgentBase(BaseModel):
     system_prompt: str = Field(..., min_length=1)
     voice: str = Field(default="mr-IN-AarohiNeural")
     model: str = Field(default="qwen3.5:4b")
+    provider: str = Field(default="ollama")  # ollama, google_gemini
     language: str = Field(default="mr")
     greeting_message: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     max_duration_seconds: int = Field(default=600, ge=60, le=3600)
     webhook_url: Optional[str] = None
+    version: str = Field(default="v1.0.0")
+    is_published: bool = Field(default=False)
+    silence_timeout_ms: int = Field(default=2000)
+    tools_config: Optional[str] = Field(default="[]")
+    knowledge_base_id: Optional[str] = None
 
 
 class AgentCreate(AgentBase):
@@ -90,11 +97,17 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = None
     voice: Optional[str] = None
     model: Optional[str] = None
+    provider: Optional[str] = None
     language: Optional[str] = None
     greeting_message: Optional[str] = None
     temperature: Optional[float] = None
     max_duration_seconds: Optional[int] = None
     webhook_url: Optional[str] = None
+    version: Optional[str] = None
+    is_published: Optional[bool] = None
+    silence_timeout_ms: Optional[int] = None
+    tools_config: Optional[str] = None
+    knowledge_base_id: Optional[str] = None
 
 
 class AgentResponse(AgentBase):
@@ -106,6 +119,186 @@ class AgentResponse(AgentBase):
 
     class Config:
         from_attributes = True
+
+
+# ── Workspace Models ────────────────────────────────────────────────────
+class WorkspaceMemberResponse(BaseModel):
+    id: str
+    workspace_id: str
+    user_id: str
+    role: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WorkspaceResponse(BaseModel):
+    id: str
+    name: str
+    owner_id: str
+    tier: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CreateWorkspaceRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+
+
+# ── Squads Multi-Agent Models ───────────────────────────────────────────
+class SquadMemberCreate(BaseModel):
+    agent_id: str
+    role_description: Optional[str] = "Specialist Agent"
+    is_entry_point: bool = False
+
+
+class SquadCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+    handoff_rules: Optional[str] = "[]"
+    members: List[SquadMemberCreate] = []
+
+
+class SquadResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    handoff_rules: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    members: List[Dict[str, Any]] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ── Tools & Webhooks Models ─────────────────────────────────────────────
+class ToolCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: str = Field(..., min_length=5)
+    tool_type: str = "http_webhook"
+    endpoint_url: Optional[str] = None
+    method: str = "POST"
+    headers: Optional[Union[str, Dict[str, Any]]] = "{}"
+    parameters_schema: Optional[Union[str, Dict[str, Any]]] = "{}"
+    timeout_seconds: int = 5
+
+    @field_validator("headers", "parameters_schema", mode="before")
+    @classmethod
+    def serialize_json_fields(cls, v):
+        if isinstance(v, (dict, list)):
+            import json
+            return json.dumps(v)
+        return v or "{}"
+
+
+class ToolResponse(ToolCreate):
+    id: str
+    user_id: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ToolTestRequest(BaseModel):
+    tool_id: Optional[str] = None
+    payload: Dict[str, Any] = {}
+
+
+class ToolTestResponse(BaseModel):
+    status: str
+    status_code: int
+    execution_time_ms: int
+    response_body: Any
+    error: Optional[str] = None
+
+
+# ── Knowledge Base Models ───────────────────────────────────────────────
+class KnowledgeBaseCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+
+
+class KnowledgeDocumentResponse(BaseModel):
+    id: str
+    knowledge_base_id: str
+    filename: str
+    file_type: str
+    chunk_count: int
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeBaseResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    total_documents: int
+    created_at: datetime
+    updated_at: datetime
+    documents: List[KnowledgeDocumentResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ── User Provider Settings ──────────────────────────────────────────────
+class UserSettingsRequest(BaseModel):
+    gemini_api_key: Optional[str] = None
+    elevenlabs_api_key: Optional[str] = None
+    deepgram_api_key: Optional[str] = None
+
+
+class UserSettingsResponse(BaseModel):
+    has_gemini_key: bool
+    has_elevenlabs_key: bool
+    has_deepgram_key: bool
+    gemini_key_preview: Optional[str] = None
+
+
+# ── Evaluations Models ──────────────────────────────────────────────────
+class EvaluationCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    agent_id: Optional[str] = None
+    rubric: Optional[Union[str, Dict[str, Any], List[Any]]] = "[]"
+
+    @field_validator("rubric", mode="before")
+    @classmethod
+    def serialize_rubric(cls, v):
+        if isinstance(v, (dict, list)):
+            import json
+            return json.dumps(v)
+        return v or "[]"
+
+
+class EvaluationResponse(BaseModel):
+    id: str
+    name: str
+    agent_id: Optional[str] = None
+    rubric: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class EvaluationRunResponse(BaseModel):
+    evaluation_id: str
+    score_percentage: float
+    passed: bool
+    criteria_results: List[Dict[str, Any]]
+
 
 
 # ── Call & Message Models ──────────────────────────────────────────────

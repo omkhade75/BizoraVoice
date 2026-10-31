@@ -21,6 +21,8 @@ backend/bizvoice.db
 *.log
 backend/storage/voicenotes/*.wav
 !backend/storage/voicenotes/.gitkeep
+scratch/
+.agents/
 
 # Environment variables & secrets
 .env
