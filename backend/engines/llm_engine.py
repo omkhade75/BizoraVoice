@@ -1,8 +1,9 @@
 """
-LLM engine using Ollama HTTP API.
+Unified LLM engine supporting both Google Gemini (Cloud) and Ollama (Local).
 
-Provides chat and streaming chat via Ollama's local REST API. Uses httpx
-for async HTTP communication with proper timeouts and error handling.
+Allows seamless toggling between:
+- Cloud-hosted Google Gemini (gemini-2.5-flash, gemini-1.5-flash, gemini-2.0-flash) with 0% laptop load.
+- Local Ollama (qwen2.5:7b, llama3.2, etc.) for offline/on-premise sovereign computing.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import AsyncGenerator
+from typing import Optional
 
 import httpx
 
@@ -19,61 +21,132 @@ logger = logging.getLogger(__name__)
 
 
 class LLMEngine:
-    """Ollama LLM engine with async HTTP communication."""
+    """Unified LLM engine supporting Google Gemini and Ollama."""
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._base_url = settings.ollama_base_url.rstrip("/")
-        self._model = settings.ollama_model
-        self._timeout = settings.ollama_timeout
-        self._client: httpx.AsyncClient | None = None
+        self._ollama_base_url = settings.ollama_base_url.rstrip("/")
+        self._ollama_model = settings.ollama_model
+        self._ollama_timeout = settings.ollama_timeout
+
+        self._gemini_api_key = settings.gemini_api_key
+        self._gemini_default_model = settings.gemini_model
+        self._gemini_timeout = settings.gemini_timeout
+
+        self._ollama_client: httpx.AsyncClient | None = None
+        self._gemini_client: httpx.AsyncClient | None = None
 
     # ── lifecycle ───────────────────────────────────────────────────────
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        """Return (or create) the shared async HTTP client."""
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                base_url=self._base_url,
+    async def _get_ollama_client(self) -> httpx.AsyncClient:
+        """Return (or create) the shared Ollama async HTTP client."""
+        if self._ollama_client is None or self._ollama_client.is_closed:
+            self._ollama_client = httpx.AsyncClient(
+                base_url=self._ollama_base_url,
                 timeout=httpx.Timeout(
                     connect=10.0,
-                    read=self._timeout,
+                    read=self._ollama_timeout,
                     write=10.0,
                     pool=10.0,
                 ),
             )
-        return self._client
+        return self._ollama_client
+
+    async def _get_gemini_client(self) -> httpx.AsyncClient:
+        """Return (or create) the shared Gemini async HTTP client."""
+        if self._gemini_client is None or self._gemini_client.is_closed:
+            self._gemini_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(
+                    connect=10.0,
+                    read=self._gemini_timeout,
+                    write=10.0,
+                    pool=10.0,
+                ),
+            )
+        return self._gemini_client
 
     async def close(self) -> None:
-        """Close the HTTP client."""
-        if self._client and not self._client.is_closed:
-            await self._client.aclose()
-            self._client = None
+        """Close HTTP clients."""
+        if self._ollama_client and not self._ollama_client.is_closed:
+            await self._ollama_client.aclose()
+            self._ollama_client = None
+        if self._gemini_client and not self._gemini_client.is_closed:
+            await self._gemini_client.aclose()
+            self._gemini_client = None
 
-    # ── health ──────────────────────────────────────────────────────────
+    # ── health & provider detection ─────────────────────────────────────
 
-    async def is_reachable(self) -> bool:
-        """Check whether the Ollama server is reachable."""
+    def is_gemini_model(self, model: Optional[str]) -> bool:
+        """Check if target model is a Google Gemini model."""
+        if not model:
+            return False
+        m = model.lower().strip()
+        return m.startswith("gemini")
+
+    async def is_reachable(self, model: Optional[str] = None) -> bool:
+        """Check whether the target LLM provider is reachable."""
+        if self.is_gemini_model(model):
+            settings = get_settings()
+            key = settings.gemini_api_key or self._gemini_api_key
+            return bool(key and len(key) > 5)
+
         try:
-            client = await self._get_client()
+            client = await self._get_ollama_client()
             resp = await client.get("/api/tags", timeout=5.0)
             return resp.status_code == 200
         except Exception:
             return False
 
-    # ── chat ────────────────────────────────────────────────────────────
+    # ── Ollama Helper ───────────────────────────────────────────────────
 
-    def _build_messages(
+    def _build_ollama_messages(
         self,
         messages: list[dict],
         system_prompt: str | None = None,
     ) -> list[dict]:
-        """Prepend system prompt to message list if provided."""
         result: list[dict] = []
         if system_prompt:
             result.append({"role": "system", "content": system_prompt})
         result.extend(messages)
         return result
+
+    # ── Gemini Helper ───────────────────────────────────────────────────
+
+    def _build_gemini_payload(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+    ) -> dict:
+        """Convert chat history to Google Gemini API payload."""
+        contents = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                continue  # Handled in systemInstruction
+            gemini_role = "model" if role == "assistant" else "user"
+            contents.append({
+                "role": gemini_role,
+                "parts": [{"text": content}]
+            })
+
+        if not contents:
+            contents.append({"role": "user", "parts": [{"text": "Hello"}]})
+
+        payload: dict = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 1024,
+            }
+        }
+        if system_prompt:
+            payload["systemInstruction"] = {
+                "parts": [{"text": system_prompt}]
+            }
+        return payload
+
+    # ── Unified Chat ────────────────────────────────────────────────────
 
     async def chat(
         self,
@@ -81,35 +154,53 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str | None = None,
     ) -> str:
-        """Send a chat request and return the complete response text.
+        """Send chat request and return complete response text."""
+        model = model or self._gemini_default_model if self._gemini_api_key else self._ollama_model
 
-        Args:
-            messages: List of message dicts with 'role' and 'content'.
-            system_prompt: Optional system prompt prepended to messages.
-            model: Model override (defaults to configured model).
+        if self.is_gemini_model(model):
+            return await self._chat_gemini(messages, system_prompt, model)
+        return await self._chat_ollama(messages, system_prompt, model)
 
-        Returns:
-            The assistant's response text.
+    async def chat_stream(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+        model: str | None = None,
+    ) -> AsyncGenerator[str, None]:
+        """Stream chat tokens from Gemini or Ollama."""
+        model = model or self._gemini_default_model if self._gemini_api_key else self._ollama_model
 
-        Raises:
-            RuntimeError: If Ollama returns an error or is unreachable.
-        """
-        model = model or self._model
+        if self.is_gemini_model(model):
+            async for token in self._chat_stream_gemini(messages, system_prompt, model):
+                yield token
+        else:
+            async for token in self._chat_stream_ollama(messages, system_prompt, model):
+                yield token
+
+    # ── Ollama Implementation ───────────────────────────────────────────
+
+    async def _chat_ollama(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+        model: str | None = None,
+    ) -> str:
+        model = model or self._ollama_model
         payload = {
             "model": model,
-            "messages": self._build_messages(messages, system_prompt),
+            "messages": self._build_ollama_messages(messages, system_prompt),
             "stream": False,
         }
 
         try:
-            client = await self._get_client()
+            client = await self._get_ollama_client()
             resp = await client.post("/api/chat", json=payload)
             resp.raise_for_status()
             data = resp.json()
             content = data.get("message", {}).get("content", "")
             return content.strip()
         except httpx.ConnectError:
-            msg = f"Cannot connect to Ollama at {self._base_url}"
+            msg = f"Cannot connect to Ollama at {self._ollama_base_url}"
             logger.error(msg)
             raise RuntimeError(msg)
         except httpx.HTTPStatusError as exc:
@@ -120,33 +211,21 @@ class LLMEngine:
             logger.error("LLM chat error: %s", exc, exc_info=True)
             raise RuntimeError(f"LLM chat failed: {exc}")
 
-    async def chat_stream(
+    async def _chat_stream_ollama(
         self,
         messages: list[dict],
         system_prompt: str | None = None,
         model: str | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream chat tokens from Ollama.
-
-        Yields individual text tokens as they arrive from the server.
-
-        Args:
-            messages: List of message dicts with 'role' and 'content'.
-            system_prompt: Optional system prompt.
-            model: Model override.
-
-        Yields:
-            Text token strings.
-        """
-        model = model or self._model
+        model = model or self._ollama_model
         payload = {
             "model": model,
-            "messages": self._build_messages(messages, system_prompt),
+            "messages": self._build_ollama_messages(messages, system_prompt),
             "stream": True,
         }
 
         try:
-            client = await self._get_client()
+            client = await self._get_ollama_client()
             async with client.stream("POST", "/api/chat", json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -164,11 +243,89 @@ class LLMEngine:
                     if token:
                         yield token
         except httpx.ConnectError:
-            logger.error("Cannot connect to Ollama at %s", self._base_url)
-            yield "I'm sorry, but I'm unable to process your request right now."
-        except httpx.HTTPStatusError as exc:
-            logger.error("Ollama stream HTTP %s", exc.response.status_code)
-            yield "I'm sorry, something went wrong while generating a response."
+            logger.error("Cannot connect to Ollama at %s", self._ollama_base_url)
+            yield "I'm sorry, Ollama is currently offline on your laptop. You can switch to Gemini for cloud execution in Settings."
         except Exception as exc:
             logger.error("LLM stream error: %s", exc, exc_info=True)
-            yield "I'm sorry, an unexpected error occurred."
+            yield "I'm sorry, an unexpected error occurred while communicating with the local LLM."
+
+    # ── Gemini Cloud Implementation ─────────────────────────────────────
+
+    async def _chat_gemini(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+        model: str = "gemini-2.5-flash",
+    ) -> str:
+        settings = get_settings()
+        api_key = settings.gemini_api_key or self._gemini_api_key
+        if not api_key:
+            return "Google Gemini API key is not configured. Please add your GEMINI_API_KEY in Settings to enable cloud LLM calls."
+
+        payload = self._build_gemini_payload(messages, system_prompt)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+        try:
+            client = await self._get_gemini_client()
+            resp = await client.post(url, json=payload)
+            if resp.status_code != 200:
+                err_msg = f"Gemini API returned {resp.status_code}: {resp.text}"
+                logger.error(err_msg)
+                return f"Gemini error: {resp.text}"
+
+            data = resp.json()
+            candidates = data.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts:
+                    return parts[0].get("text", "").strip()
+            return "No response text generated by Gemini."
+        except Exception as exc:
+            logger.error("Gemini chat error: %s", exc, exc_info=True)
+            raise RuntimeError(f"Gemini call failed: {exc}")
+
+    async def _chat_stream_gemini(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+        model: str = "gemini-2.5-flash",
+    ) -> AsyncGenerator[str, None]:
+        settings = get_settings()
+        api_key = settings.gemini_api_key or self._gemini_api_key
+        if not api_key:
+            yield "Google Gemini API key is not configured. Please set GEMINI_API_KEY in Settings to enable cloud processing without laptop load."
+            return
+
+        payload = self._build_gemini_payload(messages, system_prompt)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
+
+        try:
+            client = await self._get_gemini_client()
+            async with client.stream("POST", url, json=payload) as resp:
+                if resp.status_code != 200:
+                    err_text = await resp.aread()
+                    logger.error("Gemini stream returned %s: %s", resp.status_code, err_text.decode(errors="ignore"))
+                    yield "I encountered an error connecting to Google Gemini cloud. Please check your API key."
+                    return
+
+                async for line in resp.aiter_lines():
+                    line = line.strip()
+                    if not line or not line.startswith("data: "):
+                        continue
+
+                    json_str = line[6:].strip()
+                    try:
+                        data = json.loads(json_str)
+                    except json.JSONDecodeError:
+                        continue
+
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        for part in parts:
+                            text = part.get("text", "")
+                            if text:
+                                yield text
+        except Exception as exc:
+            logger.error("Gemini stream error: %s", exc, exc_info=True)
+            yield "An error occurred while streaming from Google Gemini."

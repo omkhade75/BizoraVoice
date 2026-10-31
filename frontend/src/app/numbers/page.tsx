@@ -42,6 +42,8 @@ export default function PhoneNumbersPage() {
   // Twilio Import Form State
   const [twilioSid, setTwilioSid] = useState('');
   const [twilioToken, setTwilioToken] = useState('');
+  const [twilioError, setTwilioError] = useState<string | null>(null);
+  const [twilioSuccessMsg, setTwilioSuccessMsg] = useState<string | null>(null);
   const [availableTwilioNumbers, setAvailableTwilioNumbers] = useState<TwilioAvailableNumber[]>([]);
   const [isQueryingTwilio, setIsQueryingTwilio] = useState(false);
   const [selectedAgentForImport, setSelectedAgentForImport] = useState('');
@@ -58,6 +60,10 @@ export default function PhoneNumbersPage() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== 'undefined') {
+      const savedSid = localStorage.getItem('bizora_twilio_sid');
+      if (savedSid) setTwilioSid(savedSid);
+    }
   }, []);
 
   const loadData = async () => {
@@ -80,16 +86,44 @@ export default function PhoneNumbersPage() {
     }
   };
 
-  const handleQueryTwilio = async () => {
+  const handleQueryTwilio = async (useDemo: boolean = false) => {
+    setTwilioError(null);
+    setTwilioSuccessMsg(null);
+
+    let sid = twilioSid.trim();
+    let token = twilioToken.trim();
+
+    if (useDemo) {
+      sid = 'demo_sandbox_account';
+      token = 'demo_sandbox_token';
+      setTwilioSid(sid);
+      setTwilioToken(token);
+    } else {
+      if (!sid || !token) {
+        setTwilioError('Please enter both Twilio Account SID (e.g. AC...) and Auth Token from your Twilio Console.');
+        return;
+      }
+      if (!sid.startsWith('AC') && !sid.startsWith('demo')) {
+        setTwilioError('Invalid Account SID format. Twilio Account SIDs always begin with "AC".');
+        return;
+      }
+    }
+
     setIsQueryingTwilio(true);
     try {
-      // Use provided keys or fallback simulation key for demonstration
-      const sid = twilioSid.trim() || 'AC_prod_demo_account';
-      const token = twilioToken.trim() || 'auth_token_demo';
+      if (typeof window !== 'undefined' && !useDemo) {
+        localStorage.setItem('bizora_twilio_sid', sid);
+      }
       const results = await queryTwilioNumbers(sid, token);
       setAvailableTwilioNumbers(results);
+      if (results.length === 0) {
+        setTwilioSuccessMsg('Twilio authentication succeeded, but 0 phone numbers were found in this account.');
+      } else {
+        setTwilioSuccessMsg(`Successfully authenticated with Twilio! Found ${results.length} incoming phone number(s).`);
+      }
     } catch (err: any) {
-      alert(`Error querying Twilio API: ${err.message}`);
+      setAvailableTwilioNumbers([]);
+      setTwilioError(err.message || 'Twilio connection failed. Please verify your Account SID and Auth Token.');
     } finally {
       setIsQueryingTwilio(false);
     }
@@ -99,8 +133,10 @@ export default function PhoneNumbersPage() {
     setIsImporting(true);
     try {
       await importTwilioNumbers({
-        account_sid: twilioSid.trim() || undefined,
-        auth_token: twilioToken.trim() || undefined,
+        account_sid: twilioSid.trim(),
+        auth_token: twilioToken.trim(),
+        agent_id: selectedAgentForImport || undefined,
+        auto_configure_webhook: true,
         numbers: [
           {
             phone_number: num.phone_number,
@@ -108,15 +144,14 @@ export default function PhoneNumbersPage() {
             provider_sid: num.provider_sid,
           },
         ],
-        agent_id: selectedAgentForImport || undefined,
-        auto_configure_webhook: true,
       });
-      alert(`Phone number ${num.phone_number} successfully imported into Bizora Voice!`);
-      await loadData();
-      // Mark as imported in local state
+
+      // Update local state
       setAvailableTwilioNumbers((prev) =>
         prev.map((n) => (n.phone_number === num.phone_number ? { ...n, already_imported: true } : n))
       );
+      await loadData();
+      setActiveTab('directory');
     } catch (err: any) {
       alert(`Import failed: ${err.message}`);
     } finally {
@@ -124,22 +159,21 @@ export default function PhoneNumbersPage() {
     }
   };
 
-  const handleRegisterGsm = async (e: React.FormEvent) => {
+  const handleAddGsmNumber = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gsmPhone.trim()) return;
     setIsAddingGsm(true);
     try {
       await registerCustomNumber({
         phone_number: gsmPhone.trim(),
-        friendly_name: gsmFriendly.trim() || gsmPhone.trim(),
+        friendly_name: gsmFriendly.trim() || 'Indian 4G VoLTE Gateway',
         provider: 'gsm_gateway',
         agent_id: gsmAgentId || undefined,
       });
-      alert(`4G GSM SIM (${gsmPhone}) registered successfully!`);
       await loadData();
       setActiveTab('directory');
     } catch (err: any) {
-      alert(`Error registering GSM number: ${err.message}`);
+      alert(`Failed to add GSM SIM: ${err.message}`);
     } finally {
       setIsAddingGsm(false);
     }
@@ -171,39 +205,36 @@ export default function PhoneNumbersPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold tracking-wide uppercase">
-              Dual Telephony Engine
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold uppercase">
+              Twilio BYOT + 4G GSM
             </span>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold tracking-wide uppercase">
-              Twilio BYOT + 4G GSM SIM
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold uppercase">
+              0% Vapi Platform Tax
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-100 flex items-center gap-3">
-            <Hash className="w-7 h-7 text-emerald-400" />
+          <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+            <Hash className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             Phone Numbers & Carrier Telephony
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-3xl leading-relaxed">
-            Both systems available side-by-side: Import your existing{' '}
-            <strong className="text-zinc-200">Twilio Phone Numbers (BYOT)</strong> with 1-click webhook binding,
-            or connect a <strong className="text-zinc-200">4G VoLTE GSM Gateway (Jio/Airtel ₹299/mo SIM)</strong> for
-            100% free unlimited Indian calling.
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-3xl leading-relaxed">
+            Import real phone numbers from your Twilio console with live API credentials, or register physical Indian 4G VoLTE GSM SIMs (Jio/Airtel ₹299/mo) for unlimited calling.
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-900 border border-zinc-800 shrink-0">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shrink-0 text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab('directory')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+            className={`px-3 py-1.5 rounded-lg transition ${
               activeTab === 'directory'
-                ? 'bg-zinc-800 text-emerald-400 shadow-sm border border-zinc-700/80'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
           >
             Active Numbers ({phoneNumbers.length})
@@ -211,10 +242,10 @@ export default function PhoneNumbersPage() {
           <button
             type="button"
             onClick={() => setActiveTab('twilio_import')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
               activeTab === 'twilio_import'
-                ? 'bg-zinc-800 text-emerald-400 shadow-sm border border-zinc-700/80'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
@@ -223,10 +254,10 @@ export default function PhoneNumbersPage() {
           <button
             type="button"
             onClick={() => setActiveTab('gsm_gateway')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
               activeTab === 'gsm_gateway'
-                ? 'bg-zinc-800 text-amber-400 shadow-sm border border-zinc-700/80'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
           >
             <Signal className="w-3.5 h-3.5" />
@@ -239,64 +270,59 @@ export default function PhoneNumbersPage() {
       {activeTab === 'directory' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 flex items-center justify-center font-bold">
                   <Globe className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-zinc-100">Twilio Cloud Numbers</h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Global numbers, toll-free, and US/UK landlines. 0% Vapi platform fee.
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">Twilio Cloud Numbers</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Direct Twilio REST API + Media Stream Webhooks. Pay raw carrier cost ($0.01/m).
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveTab('twilio_import')}
-                className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition"
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
               >
-                + Import More
+                + Import
               </button>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/25 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center font-bold">
                   <Signal className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-zinc-100">4G VoLTE GSM Gateways</h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Local Indian mobile SIMs (Jio/Airtel). Flat ₹299/mo, zero OTP lock.
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">4G VoLTE GSM Gateways</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Physical SIM card (Jio / Airtel ₹299/mo). 100% free unlimited Indian calling.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveTab('gsm_gateway')}
-                className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold transition"
+                className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition shadow-sm"
               >
                 + Add SIM
               </button>
             </div>
           </div>
 
-          {/* Table of Active Numbers */}
-          <div className="bg-zinc-900/90 rounded-2xl border border-zinc-800 overflow-hidden shadow-xl">
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-zinc-100">
-                  Registered Telephony Endpoints ({phoneNumbers.length})
-                </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Incoming calls to these numbers are answered immediately by the assigned AI receptionist.
-                </p>
-              </div>
+          {/* Numbers Table */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                Registered Inbound & Outbound Lines
+              </span>
               <button
                 type="button"
                 onClick={loadData}
-                className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition"
+                className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition"
                 title="Refresh"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -304,48 +330,48 @@ export default function PhoneNumbersPage() {
             </div>
 
             {loading ? (
-              <div className="p-10 text-center text-xs text-zinc-500">Loading numbers...</div>
+              <div className="p-10 text-center text-xs text-zinc-500">Loading telephony numbers...</div>
             ) : phoneNumbers.length === 0 ? (
               <div className="p-12 text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-800 text-zinc-500 mx-auto flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
                   <Hash className="w-6 h-6" />
                 </div>
                 <div className="max-w-sm mx-auto">
-                  <h3 className="font-bold text-sm text-zinc-200">No Phone Numbers Registered Yet</h3>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Connect your Twilio account to import numbers in 1 click, or register your Jio 4G GSM SIM.
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">No Phone Numbers Registered Yet</h3>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Connect your Twilio account to query and import your live numbers, or connect your Jio 4G GSM SIM.
                   </p>
                 </div>
                 <div className="flex items-center justify-center gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => setActiveTab('twilio_import')}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
                   >
                     Import Twilio Number
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('gsm_gateway')}
-                    className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs border border-zinc-700 transition"
+                    className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition hover:bg-zinc-50"
                   >
                     Add 4G GSM SIM
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-zinc-800/80">
+              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {phoneNumbers.map((num) => (
                   <div
                     key={num.id}
-                    className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-zinc-850/50 transition"
+                    className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-850/50 transition"
                   >
                     <div className="flex items-start sm:items-center gap-3.5">
                       <div
                         className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 ${
                           num.provider === 'twilio'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                         }`}
                       >
                         {num.provider === 'twilio' ? <Globe className="w-5 h-5" /> : <Signal className="w-5 h-5" />}
@@ -353,20 +379,20 @@ export default function PhoneNumbersPage() {
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-sm text-zinc-100">
+                          <span className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">
                             {num.phone_number}
                           </span>
                           <span
                             className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
                               num.provider === 'twilio'
-                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                             }`}
                           >
                             {num.provider === 'twilio' ? 'Twilio BYOT' : '4G VoLTE GSM'}
                           </span>
                         </div>
-                        <div className="text-xs text-zinc-400 mt-0.5">
+                        <div className="text-xs text-zinc-500 mt-0.5">
                           {num.friendly_name || 'Inbound Direct Line'}
                         </div>
                       </div>
@@ -375,11 +401,11 @@ export default function PhoneNumbersPage() {
                     {/* Assigned AI Agent Selector */}
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center gap-2">
-                        <Bot className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <Bot className="w-4 h-4 text-emerald-500 shrink-0" />
                         <select
                           value={num.agent_id || ''}
                           onChange={(e) => handleAgentChange(num.id, e.target.value)}
-                          className="bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500"
+                          className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-3 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         >
                           <option value="">Unassigned (Fallback)</option>
                           {agents.map((ag) => (
@@ -395,13 +421,13 @@ export default function PhoneNumbersPage() {
                         <button
                           type="button"
                           onClick={() => copyWebhook(num.webhook_url!, num.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs transition"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 text-xs transition"
                           title="Copy Twilio Voice Webhook URL"
                         >
                           {copiedId === num.id ? (
                             <>
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                              <span className="text-emerald-400">Copied</span>
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              <span className="text-emerald-500 font-bold">Copied</span>
                             </>
                           ) : (
                             <>
@@ -415,7 +441,7 @@ export default function PhoneNumbersPage() {
                       <button
                         type="button"
                         onClick={() => handleDeleteNumber(num.id)}
-                        className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                        className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition"
                         title="Remove Number"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -432,31 +458,47 @@ export default function PhoneNumbersPage() {
       {/* TAB 2: IMPORT TWILIO NUMBERS (BYOT) */}
       {activeTab === 'twilio_import' && (
         <div className="space-y-6">
-          <div className="p-6 md:p-8 rounded-3xl bg-zinc-900/90 border border-emerald-500/30 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-5">
+          <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-zinc-900/90 border border-emerald-500/30 shadow-md space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Globe className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-zinc-100">
-                    Import Existing Twilio Phone Numbers (BYOT)
+                  <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    Import Real Twilio Phone Numbers (BYOT)
                   </h2>
-                  <p className="text-xs text-zinc-400">
-                    Enter your Twilio credentials. Bizora Voice fetches your numbers and binds webhooks automatically.
+                  <p className="text-xs text-zinc-500">
+                    Live API integration: Enter your Twilio credentials to query active incoming numbers and auto-bind webhooks.
                   </p>
                 </div>
               </div>
-
-              <span className="text-xs font-bold text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
                 0% VAPI PLATFORM TAX
               </span>
             </div>
 
+            {/* Error / Success Feedback Banners */}
+            {twilioError && (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Twilio Error:</strong> {twilioError}
+                </div>
+              </div>
+            )}
+
+            {twilioSuccessMsg && (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{twilioSuccessMsg}</span>
+              </div>
+            )}
+
             {/* Credential Inputs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Twilio Account SID:
                 </label>
                 <input
@@ -464,12 +506,12 @@ export default function PhoneNumbersPage() {
                   placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   value={twilioSid}
                   onChange={(e) => setTwilioSid(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Twilio Auth Token:
                 </label>
                 <input
@@ -477,51 +519,62 @@ export default function PhoneNumbersPage() {
                   placeholder="••••••••••••••••••••••••••••••••"
                   value={twilioToken}
                   onChange={(e) => setTwilioToken(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Credentials stay on your local server. Never sent to any 3rd party cloud.</span>
+              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Credentials stay on your server. Never forwarded to any intermediary.</span>
               </div>
 
-              <button
-                type="button"
-                onClick={handleQueryTwilio}
-                disabled={isQueryingTwilio}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-zinc-950 font-bold text-xs transition shadow-lg shadow-emerald-950/40"
-              >
-                {isQueryingTwilio ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Connecting to Twilio...</span>
-                  </>
-                ) : (
-                  <>
-                    <Globe className="w-4 h-4" />
-                    <span>Fetch My Twilio Numbers</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleQueryTwilio(true)}
+                  className="px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                  title="Test import flow with realistic demo credentials"
+                >
+                  Explore Demo Numbers
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQueryTwilio(false)}
+                  disabled={isQueryingTwilio}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs transition shadow-md"
+                >
+                  {isQueryingTwilio ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Connecting to Twilio REST API...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4" />
+                      <span>Query My Twilio Numbers</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Available Numbers Result List */}
           {availableTwilioNumbers.length > 0 && (
-            <div className="bg-zinc-900/90 rounded-2xl border border-zinc-800 overflow-hidden shadow-xl space-y-4 p-5">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                <h3 className="font-bold text-sm text-zinc-100">
+            <div className="bg-white dark:bg-zinc-900/90 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-md space-y-4 p-5">
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
                   Twilio Phone Numbers Found ({availableTwilioNumbers.length})
                 </h3>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-400">Assign to Agent:</span>
+                  <span className="text-xs text-zinc-500">Assign to Agent:</span>
                   <select
                     value={selectedAgentForImport}
                     onChange={(e) => setSelectedAgentForImport(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-1 font-medium focus:outline-none focus:border-emerald-500"
+                    className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-3 py-1 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     {agents.map((ag) => (
                       <option key={ag.id} value={ag.id}>
@@ -532,7 +585,7 @@ export default function PhoneNumbersPage() {
                 </div>
               </div>
 
-              <div className="divide-y divide-zinc-800/80">
+              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {availableTwilioNumbers.map((num) => (
                   <div
                     key={num.phone_number}
@@ -540,19 +593,19 @@ export default function PhoneNumbersPage() {
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sm text-zinc-100">
+                        <span className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">
                           {num.phone_number}
                         </span>
-                        <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-zinc-950">
+                        <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">
                           {num.provider_sid}
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">{num.friendly_name}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{num.friendly_name}</p>
                     </div>
 
                     <div>
                       {num.already_imported ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
                           <CheckCircle2 className="w-4 h-4" />
                           <span>Imported & Live</span>
                         </span>
@@ -561,10 +614,10 @@ export default function PhoneNumbersPage() {
                           type="button"
                           onClick={() => handleImportSingle(num)}
                           disabled={isImporting}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-zinc-950 font-bold text-xs transition"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs transition shadow-sm"
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Import & Connect Webhook</span>
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>Import & Auto-Bind Webhook</span>
                         </button>
                       )}
                     </div>
@@ -576,66 +629,62 @@ export default function PhoneNumbersPage() {
         </div>
       )}
 
-      {/* TAB 3: 4G VoLTE GSM GATEWAY (Jio/Airtel SIM) */}
+      {/* TAB 3: 4G VOLTE GSM GATEWAY */}
       {activeTab === 'gsm_gateway' && (
-        <div className="p-6 md:p-8 rounded-3xl bg-zinc-900/90 border border-amber-500/30 shadow-xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+        <div className="space-y-6">
+          <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-zinc-900/90 border border-amber-500/30 shadow-md space-y-6">
+            <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <Signal className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-zinc-100">
-                  4G VoLTE GSM Gateway SIM (Indian Telephony)
+                <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                  Connect 4G VoLTE GSM Gateway (Jio / Airtel Unlimited SIM)
                 </h2>
-                <p className="text-xs text-zinc-400">
-                  Connect any standard Jio or Airtel SIM card inserted into a GoIP or Dinstar GSM Gateway box.
+                <p className="text-xs text-zinc-500">
+                  Plug any standard ₹299/month physical Indian SIM card into a hardware GSM gateway (e.g. GoIP, Dinstar) or SIP PBX.
                 </p>
               </div>
             </div>
 
-            <span className="text-xs font-bold text-amber-400 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-              ₹299/MO UNLIMITED CALLS • ZERO OTP LOCKS
-            </span>
-          </div>
+            <form onSubmit={handleAddGsmNumber} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    Indian Mobile Number (with +91):
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="+919820011223"
+                    value={gsmPhone}
+                    onChange={(e) => setGsmPhone(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
 
-          <form onSubmit={handleRegisterGsm} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
-                  SIM Phone Number:
-                </label>
-                <input
-                  type="text"
-                  placeholder="+919820011223"
-                  value={gsmPhone}
-                  onChange={(e) => setGsmPhone(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:border-amber-500"
-                  required
-                />
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    Label / Description:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Nashik APMC Desk SIM"
+                    value={gsmFriendly}
+                    onChange={(e) => setGsmFriendly(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
-                  Friendly Label:
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Jio 4G Mandi SIM"
-                  value={gsmFriendly}
-                  onChange={(e) => setGsmFriendly(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
-                  Assigned AI Receptionist:
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Route Incoming Calls to AI Voice Agent:
                 </label>
                 <select
                   value={gsmAgentId}
                   onChange={(e) => setGsmAgentId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
                   {agents.map((ag) => (
                     <option key={ag.id} value={ag.id}>
@@ -644,29 +693,18 @@ export default function PhoneNumbersPage() {
                   ))}
                 </select>
               </div>
-            </div>
 
-            <div className="p-4 rounded-2xl bg-zinc-950/80 border border-zinc-800 text-xs text-zinc-400 space-y-1">
-              <div className="font-semibold text-zinc-200">How it works:</div>
-              <p>
-                In India, calling mobile numbers from Twilio trial accounts requires OTP pre-verification.
-                By connecting a standard ₹299/month Jio/Airtel 4G SIM into a local GSM Gateway, you can call
-                any customer mobile number in India with zero OTP restrictions, and the recipient sees your actual
-                Indian mobile caller ID.
-              </p>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={isAddingGsm}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-zinc-950 font-bold text-xs transition shadow-lg shadow-amber-950/40"
-              >
-                <Signal className="w-4 h-4" />
-                <span>Register 4G GSM SIM</span>
-              </button>
-            </div>
-          </form>
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={isAddingGsm}
+                  className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition shadow-md"
+                >
+                  {isAddingGsm ? 'Registering SIM...' : 'Register 4G VoLTE Gateway Line'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

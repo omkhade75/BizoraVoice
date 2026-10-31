@@ -20,18 +20,18 @@ export default function HistoryPage() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-bold">
             AUDIT LOGS
           </span>
-          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-mono">
-            LOCAL STORAGE
+          <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px] font-mono font-bold">
+            SUPABASE POSTGRESQL ARCHIVED
           </span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
-          <History className="w-6 h-6 text-emerald-400" />
-          Call History & Transcripts
+        <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+          <History className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          Call History & Dialogue Transcripts
         </h1>
-        <p className="text-xs text-zinc-400 mt-1">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
           Review recorded call durations, cloud cost savings ($ and ₹), timestamps, and dual-language conversational transcripts.
         </p>
       </div>

@@ -41,7 +41,12 @@ class Settings(BaseSettings):
         """Parse comma-separated CORS origins into a list."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
-    # ── Ollama LLM ──────────────────────────────────────────────────────
+    # ── Google Gemini Cloud LLM ─────────────────────────────────────────
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_timeout: int = 60
+
+    # ── Ollama Local LLM ────────────────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"
     ollama_timeout: int = 120

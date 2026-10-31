@@ -210,10 +210,10 @@ export default function SimpleLandingPage() {
                   Hi, <strong>{currentUser.name}</strong>
                 </span>
                 <Link
-                  href="/call"
+                  href="/agents"
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
                 >
-                  Voice Studio
+                  Workspace Dashboard
                 </Link>
               </div>
             ) : (
@@ -225,11 +225,11 @@ export default function SimpleLandingPage() {
                   Sign In
                 </Link>
                 <Link
-                  href="/call"
+                  href="/signup"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <Phone className="w-3.5 h-3.5 fill-current" />
-                  <span>Try Voice Studio</span>
+                  <span>Get Started Free</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </>
             )}
@@ -266,11 +266,10 @@ export default function SimpleLandingPage() {
           {/* Primary Action Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
             <Link
-              href="/call"
+              href={currentUser ? "/agents" : "/signup"}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm transition shadow-md hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Mic className="w-4 h-4" />
-              <span>Launch Free Voice Studio</span>
+              <span>{currentUser ? "Open Workspace Studio" : "Get Started for Free"}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
@@ -283,7 +282,7 @@ export default function SimpleLandingPage() {
             </a>
 
             <Link
-              href="/login"
+              href="/signup"
               className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition hover:text-zinc-900 dark:hover:text-white"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -638,18 +637,17 @@ export default function SimpleLandingPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
-              href="/call"
+              href={currentUser ? "/agents" : "/signup"}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition shadow-md hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Mic className="w-4 h-4" />
-              <span>Open Voice Studio Free</span>
+              <span>{currentUser ? "Open Workspace Studio" : "Get Started for Free"}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/login"
               className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 font-semibold text-sm transition hover:bg-zinc-50 dark:hover:bg-zinc-850"
             >
-              <span>Sign In / Create Account</span>
+              <span>Sign In / View Workspaces</span>
             </Link>
           </div>
         </div>

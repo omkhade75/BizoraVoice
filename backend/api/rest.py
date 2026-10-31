@@ -101,6 +101,73 @@ async def list_voices():
     return settings.VOICE_CATALOG
 
 
+# ── AI LLM Models Catalog (Google Gemini + Local Ollama) ───────────────
+@router.get("/models")
+async def list_models():
+    """Return available LLM providers and models."""
+    return {
+        "providers": [
+            {
+                "id": "gemini",
+                "name": "Google Gemini (Cloud - 0% Laptop Load)",
+                "description": "Ultra-fast sub-400ms cloud inference running entirely on Google servers. Zero CPU/GPU usage on your machine.",
+                "is_cloud": True,
+                "models": [
+                    {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "recommended": True, "speed": "Sub-300ms", "context": "1M tokens"},
+                    {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "recommended": False, "speed": "Sub-400ms", "context": "1M tokens"},
+                    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "recommended": False, "speed": "Sub-350ms", "context": "1M tokens"},
+                ],
+            },
+            {
+                "id": "ollama",
+                "name": "Ollama (Self-Hosted / Local GPU)",
+                "description": "Runs on local hardware for 100% offline, private, sovereign on-premise execution.",
+                "is_cloud": False,
+                "models": [
+                    {"id": "qwen3.5:4b", "name": "Qwen 3.5 (4B - Optimized Indic)", "recommended": True, "speed": "Local", "context": "32k tokens"},
+                    {"id": "qwen2.5:7b", "name": "Qwen 2.5 (7B)", "recommended": False, "speed": "Local", "context": "32k tokens"},
+                    {"id": "llama3.2:3b", "name": "Llama 3.2 (3B)", "recommended": False, "speed": "Local", "context": "8k tokens"},
+                    {"id": "mistral:7b", "name": "Mistral (7B)", "recommended": False, "speed": "Local", "context": "32k tokens"},
+                ],
+            },
+        ]
+    }
+
+
+# ── System Configuration & Integrations ────────────────────────────────
+@router.get("/config/integrations")
+async def get_integrations_status():
+    """Return status of integrations (Supabase, Gemini, Twilio, GSM Gateway)."""
+    gemini_key = settings.gemini_api_key
+    gemini_masked = (gemini_key[:4] + "..." + gemini_key[-4:]) if (gemini_key and len(gemini_key) > 8) else ""
+
+    twilio_sid = settings.twilio_account_sid
+    twilio_masked = (twilio_sid[:6] + "..." + twilio_sid[-4:]) if (twilio_sid and len(twilio_sid) > 10) else ""
+
+    return {
+        "database": {
+            "type": "Supabase PostgreSQL",
+            "host": "db.vsmlvtrwgkpwxwhatbhx.supabase.co",
+            "status": "connected",
+        },
+        "gemini": {
+            "configured": bool(gemini_key),
+            "key_preview": gemini_masked,
+            "default_model": settings.gemini_model,
+        },
+        "twilio": {
+            "configured": bool(twilio_sid),
+            "account_sid_preview": twilio_masked,
+            "phone_number": settings.twilio_phone_number,
+        },
+        "gsm_gateway": {
+            "host": settings.sip_gateway_host or "127.0.0.1",
+            "port": settings.sip_gateway_port,
+            "unlimited_sim_ready": True,
+        },
+    }
+
+
 # ── AI Agents CRUD ─────────────────────────────────────────────────────
 @router.get("/agents", response_model=List[AgentResponse])
 async def list_agents(

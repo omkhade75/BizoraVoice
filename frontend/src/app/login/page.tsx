@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   Mail,
   Lock,
@@ -22,8 +22,9 @@ import { loginUser, registerUser, googleLogin, AuthUser } from '@/lib/api';
 
 function LoginFormContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
+  const initialMode = pathname.includes('signup') || searchParams.get('mode') === 'signup' ? 'signup' : 'login';
 
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
@@ -55,8 +56,8 @@ function LoginFormContent() {
         setSuccessUser(res.user);
       }
       setTimeout(() => {
-        router.push('/');
-      }, 1000);
+        router.push('/agents');
+      }, 800);
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please try again.');
       setLoading(false);
@@ -72,8 +73,8 @@ function LoginFormContent() {
       setSuccessUser(res.user);
       setShowGooglePicker(false);
       setTimeout(() => {
-        router.push('/');
-      }, 1000);
+        router.push('/agents');
+      }, 800);
     } catch (err: any) {
       setErrorMsg(err.message || 'Google authentication failed.');
       setGoogleLoading(false);

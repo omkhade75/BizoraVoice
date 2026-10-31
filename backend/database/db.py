@@ -11,10 +11,16 @@ from core.security import hash_password, hash_api_key
 
 settings = get_settings()
 
+connect_args = {}
+if "postgresql" in settings.database_url:
+    connect_args["ssl"] = "require"
+
 engine = create_async_engine(
     settings.database_url,
+    connect_args=connect_args,
     echo=settings.debug,
     future=True,
+    pool_pre_ping=True,
 )
 
 async_session_factory = async_sessionmaker(

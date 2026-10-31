@@ -262,14 +262,27 @@ class TelephonyService:
     async def fetch_twilio_account_numbers(account_sid: str, auth_token: str) -> List[Dict[str, Any]]:
         """
         Query Twilio API for all incoming phone numbers configured under the account.
+        Raises descriptive HTTPException if credentials fail.
         """
-        if not account_sid or not auth_token:
-            return TelephonyService._get_sample_twilio_numbers(account_sid or "AC_demo")
+        from fastapi import HTTPException
 
-        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/IncomingPhoneNumbers.json"
+        acc = account_sid.strip()
+        tok = auth_token.strip()
+
+        if not acc or not tok:
+            raise HTTPException(
+                status_code=400,
+                detail="Twilio Account SID and Auth Token are required.",
+            )
+
+        # Explicit demo mode fallback only when requested
+        if acc.lower().startswith("demo"):
+            return TelephonyService._get_sample_twilio_numbers(acc)
+
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{acc}/IncomingPhoneNumbers.json"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(url, auth=(account_sid, auth_token))
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.get(url, auth=(acc, tok))
                 if resp.status_code == 200:
                     data = resp.json()
                     numbers = []
@@ -284,15 +297,27 @@ class TelephonyService:
                                 "sms": bool(caps.get("sms", True)),
                             },
                         })
-                    if numbers:
-                        return numbers
-                    return TelephonyService._get_sample_twilio_numbers(account_sid)
+                    return numbers
+                elif resp.status_code == 401:
+                    logger.error(f"Twilio 401 Unauthorized for {acc}")
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Twilio Authentication Failed: Invalid Account SID or Auth Token. Please check your Twilio Console credentials.",
+                    )
                 else:
-                    logger.warning(f"Twilio returned status {resp.status_code}: {resp.text}")
-                    return TelephonyService._get_sample_twilio_numbers(account_sid)
+                    logger.error(f"Twilio returned status {resp.status_code}: {resp.text}")
+                    raise HTTPException(
+                        status_code=resp.status_code,
+                        detail=f"Twilio API Error ({resp.status_code}): {resp.text}",
+                    )
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error querying Twilio numbers: {e}")
-            return TelephonyService._get_sample_twilio_numbers(account_sid)
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to communicate with Twilio API: {str(e)}",
+            )
 
     @staticmethod
     def _get_sample_twilio_numbers(account_sid: str) -> List[Dict[str, Any]]:
