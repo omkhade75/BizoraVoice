@@ -71,6 +71,21 @@ function LoginFormContent() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const res = await loginUser('admin@bizoravoice.com', 'admin123');
+      setSuccessUser(res.user);
+      setTimeout(() => {
+        router.push('/agents');
+      }, 500);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Demo login failed');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-obsidian-canvas text-text-primary flex flex-col lg:flex-row relative overflow-hidden select-none">
       {/* Top Left Navigation Back */}
@@ -313,12 +328,25 @@ function LoginFormContent() {
               <button
                 type="submit"
                 disabled={loading || !!successUser}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs flex items-center justify-center gap-2 mt-4 disabled:opacity-50 cursor-pointer"
               >
                 <span>{loading ? 'Authenticating...' : mode === 'signup' ? 'Create Account' : 'Sign In'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </form>
+
+            {/* 3. ONE-CLICK DEMO ACCESS */}
+            <div className="pt-2 border-t border-border-subtle">
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                disabled={loading || !!successUser}
+                className="w-full py-2.5 px-3 rounded-xl border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/10 hover:bg-amber-500/15 text-amber-500 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Instant Demo Access (1-Click Preview)</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -37,6 +37,7 @@ if _is_pg:
     )
 
 engine = create_async_engine(_db_url, **_engine_kwargs)
+async_engine = engine
 
 async_session_factory = async_sessionmaker(
     engine,

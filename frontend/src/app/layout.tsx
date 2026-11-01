@@ -34,6 +34,11 @@ export default function RootLayout({
                 } else {
                   document.documentElement.classList.remove('dark');
                 }
+
+                // Resilient OAuth redirect capture
+                if (window.location.hash && window.location.hash.includes('access_token=') && !window.location.pathname.includes('/auth/callback')) {
+                  window.location.replace('/auth/callback' + window.location.hash);
+                }
               } catch (_) {}
             `,
           }}
