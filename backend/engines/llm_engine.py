@@ -348,8 +348,9 @@ class LLMEngine:
         if self._ollama_client is None or self._ollama_client.is_closed:
             self._ollama_client = httpx.AsyncClient(
                 base_url=self._ollama_base_url,
+                headers={"Bypass-Tunnel-Reminder": "true", "User-Agent": "BizoraVoice/1.0"},
                 timeout=httpx.Timeout(
-                    connect=2.5,
+                    connect=3.5,
                     read=self._ollama_timeout,
                     write=5.0,
                     pool=5.0,
