@@ -424,7 +424,15 @@ async def start_call_session(
         or (agent.system_prompt if agent else "You are Bizora Voice, an articulate AI assistant.")
     )
     voice = req.voice or (agent.voice if agent else settings.tts_voice)
-    model = agent.model if agent else settings.ollama_model
+    # Resolve Model & Inference Engine (Gemini Cloud vs Local Ollama)
+    inference_mode = (req.inference_mode or "gemini").lower().strip()
+    if inference_mode == "gemini":
+        model = req.model if (req.model and "gemini" in req.model.lower()) else "gemini-2.5-flash"
+    elif inference_mode == "ollama":
+        model = req.model if (req.model and "gemini" not in req.model.lower()) else (agent.model if agent else settings.ollama_model)
+    else:
+        model = req.model or (agent.model if agent else "gemini-2.5-flash")
+
     agent_name = agent.name if agent else "Bizora Voice Assistant"
     greeting = req.greeting_message or (agent.greeting_message if agent else None)
 

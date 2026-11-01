@@ -333,6 +333,8 @@ class CallDetailResponse(CallResponse):
 
 class StartCallRequest(BaseModel):
     agent_id: Optional[str] = None
+    model: Optional[str] = None
+    inference_mode: Optional[str] = "gemini"
     custom_system_prompt: Optional[str] = None
     voice: Optional[str] = None
     language: Optional[str] = None

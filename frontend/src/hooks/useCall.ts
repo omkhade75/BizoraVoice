@@ -183,7 +183,9 @@ export function useCall() {
     agentLang?: string,
     customPrompt?: string,
     voice?: string,
-    greeting?: string
+    greeting?: string,
+    model?: string,
+    inferenceMode?: 'gemini' | 'ollama'
   ) => {
     try {
       setError(null);
@@ -192,6 +194,10 @@ export function useCall() {
 
       const token = getAuthToken();
       const localGeminiKey = typeof window !== 'undefined' ? localStorage.getItem('bizora_gemini_key') || undefined : undefined;
+      const localInferenceMode = (typeof window !== 'undefined' ? localStorage.getItem('bizora_inference_mode') : null) || 'gemini';
+      const effectiveMode = inferenceMode || (localInferenceMode as 'gemini' | 'ollama');
+      const localModel = typeof window !== 'undefined' ? localStorage.getItem('bizora_selected_model') || undefined : undefined;
+      const effectiveModel = model || localModel || (effectiveMode === 'gemini' ? 'gemini-2.5-flash' : 'qwen3.5:4b');
 
       const startRes = await fetch(`${API_BASE}/api/calls/start`, {
         method: 'POST',
@@ -201,6 +207,8 @@ export function useCall() {
         },
         body: JSON.stringify({
           agent_id: agentId || null,
+          model: effectiveModel,
+          inference_mode: effectiveMode,
           custom_system_prompt: customPrompt || null,
           voice: voice || null,
           greeting_message: greeting || null,

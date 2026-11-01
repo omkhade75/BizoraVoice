@@ -26,6 +26,14 @@ import {
   ArrowRight,
   RotateCcw,
   Bot,
+  Cloud,
+  Cpu,
+  Laptop,
+  ShieldAlert,
+  Info,
+  X,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 
 export function CallPanel() {
@@ -51,13 +59,33 @@ export function CallPanel() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
 
+  // Hardware Inference Mode: 'gemini' (Cloud, 0% laptop load) vs 'ollama' (Local On-Device)
+  const [inferenceMode, setInferenceMode] = useState<'gemini' | 'ollama'>('gemini');
+  const [showOllamaModal, setShowOllamaModal] = useState<boolean>(false);
+  const [ollamaTesting, setOllamaTesting] = useState<boolean>(false);
+  const [ollamaTestResult, setOllamaTestResult] = useState<{
+    status: 'idle' | 'checking' | 'connected' | 'failed';
+    message: string;
+    models: string[];
+  }>({
+    status: 'idle',
+    message: '',
+    models: [],
+  });
+
   // Squad Multi-Agent Simulation state
   const [activeSquad, setActiveSquad] = useState<Squad | null>(null);
   const [currentMemberIdx, setCurrentMemberIdx] = useState<number>(0);
   const [transferring, setTransferring] = useState<boolean>(false);
 
-  // Load agents and check for squad parameter
+  // Load preferences, agents and check for squad parameter
   useEffect(() => {
+    // 0. Load cached inference preference
+    if (typeof window !== 'undefined') {
+      const savedMode = (localStorage.getItem('bizora_inference_mode') as 'gemini' | 'ollama') || 'gemini';
+      setInferenceMode(savedMode);
+    }
+
     // 1. Load Agents
     getAgents()
       .then((data) => {
@@ -94,7 +122,80 @@ export function CallPanel() {
   const activeMember: SquadMember | undefined = activeSquad?.members[currentMemberIdx];
   const nextMember: SquadMember | undefined = activeSquad?.members[currentMemberIdx + 1];
 
+  const handleSelectEngine = (mode: 'gemini' | 'ollama') => {
+    if (mode === 'gemini') {
+      setInferenceMode('gemini');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('bizora_inference_mode', 'gemini');
+      }
+    } else {
+      // Check if permission was already granted on this browser/laptop
+      const hasPermission = typeof window !== 'undefined' && localStorage.getItem('bizora_ollama_permission') === 'granted';
+      if (hasPermission) {
+        setInferenceMode('ollama');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('bizora_inference_mode', 'ollama');
+        }
+      } else {
+        // Open the permission and hardware check modal
+        setShowOllamaModal(true);
+        testLocalOllamaPing();
+      }
+    }
+  };
+
+  const testLocalOllamaPing = async () => {
+    setOllamaTesting(true);
+    setOllamaTestResult({
+      status: 'checking',
+      message: 'Checking for local Ollama on this laptop (http://localhost:11434)...',
+      models: [],
+    });
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch('http://localhost:11434/api/tags', { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        const models = (data.models || []).map((m: any) => m.name || m.model || 'model');
+        setOllamaTestResult({
+          status: 'connected',
+          message: `Connected to Local Ollama! Found ${models.length} model(s) installed.`,
+          models,
+        });
+      } else {
+        setOllamaTestResult({
+          status: 'failed',
+          message: 'Ollama responded with an error. Ensure Ollama service is running on this laptop.',
+          models: [],
+        });
+      }
+    } catch {
+      setOllamaTestResult({
+        status: 'failed',
+        message: 'Could not reach http://localhost:11434. Ollama is either not running on this laptop or browser blocked the request. You can use Google Gemini (Cloud) for zero laptop load.',
+        models: [],
+      });
+    } finally {
+      setOllamaTesting(false);
+    }
+  };
+
+  const handleGrantOllamaPermission = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bizora_ollama_permission', 'granted');
+      localStorage.setItem('bizora_inference_mode', 'ollama');
+    }
+    setInferenceMode('ollama');
+    setShowOllamaModal(false);
+  };
+
   const handleStartCall = () => {
+    const effectiveModel = inferenceMode === 'gemini' ? 'gemini-2.5-flash' : 'qwen3.5:4b';
+
     if (activeSquad && activeMember) {
       // Start call with Squad Lead Agent
       const lang = activeMember.language.toLowerCase().includes('marathi')
@@ -107,11 +208,21 @@ export function CallPanel() {
         lang,
         activeMember.systemPrompt,
         activeMember.voice,
-        activeMember.greetingMessage
+        activeMember.greetingMessage,
+        effectiveModel,
+        inferenceMode
       );
     } else {
       // Standard Single Agent Call
-      startCall(selectedAgentId || undefined, selectedAgent?.language);
+      startCall(
+        selectedAgentId || undefined,
+        selectedAgent?.language,
+        undefined,
+        undefined,
+        undefined,
+        effectiveModel,
+        inferenceMode
+      );
     }
   };
 
@@ -260,6 +371,61 @@ export function CallPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Interactive Call Stage */}
         <div className="lg:col-span-6 flex flex-col gap-4">
+          {/* ── INFERENCE ENGINE & LAPTOP HARDWARE LOAD CONTROLLER ───────────── */}
+          <div className="p-3.5 rounded-2xl bg-obsidian-surface border border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-text-tertiary">
+                Inference:
+              </span>
+              <div className="inline-flex p-1 rounded-xl bg-obsidian-elevated border border-border-subtle gap-1">
+                <button
+                  type="button"
+                  disabled={isInCall}
+                  onClick={() => handleSelectEngine('gemini')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    inferenceMode === 'gemini'
+                      ? 'bg-amber-500 text-obsidian-canvas font-bold shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary'
+                  } disabled:opacity-50`}
+                  title="Runs on Google Cloud. Zero CPU/GPU/RAM load on your laptop."
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>Cloud Gemini</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isInCall}
+                  onClick={() => handleSelectEngine('ollama')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    inferenceMode === 'ollama'
+                      ? 'bg-amber-500 text-obsidian-canvas font-bold shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary'
+                  } disabled:opacity-50`}
+                  title="Runs directly on your laptop using Ollama (Uses laptop RAM and CPU/GPU)"
+                >
+                  <Cpu className="w-3.5 h-3.5" />
+                  <span>Local Ollama</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Hardware Telemetry Badge */}
+            <div className="flex items-center gap-2">
+              {inferenceMode === 'gemini' ? (
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-1.5 font-bold">
+                  <Zap className="w-3 h-3 text-emerald-400" />
+                  <span>0% Laptop Load • Cool & Fast</span>
+                </span>
+              ) : (
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/25 flex items-center gap-1.5 font-bold">
+                  <Laptop className="w-3 h-3 text-amber-400" />
+                  <span>On-Device • Laptop Memory</span>
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Main Phone Call Stage */}
           <div className="bg-obsidian-surface rounded-2xl border border-border-subtle p-6 md:p-8 flex flex-col items-center justify-between min-h-[490px] shadow-lg relative overflow-hidden transition-colors">
             {/* Top Status Strip */}
@@ -301,8 +467,8 @@ export function CallPanel() {
                 <p className="text-xs text-text-secondary leading-relaxed">
                   {isInCall
                     ? activeSquad
-                      ? `Connected to Squad Step ${currentMemberIdx + 1} of ${activeSquad.members.length}. Sub-329ms acoustic duplex.`
-                      : 'Real-time full-duplex conversational audio with sub-329ms latency.'
+                      ? `Connected to Squad Step ${currentMemberIdx + 1} of ${activeSquad.members.length}. ${inferenceMode === 'gemini' ? 'Gemini 2.5 Flash' : 'Local Ollama'} Active.`
+                      : `Real-time full-duplex conversational audio with sub-329ms latency via ${inferenceMode === 'gemini' ? 'Gemini Cloud' : 'Local Ollama'}.`
                     : activeSquad && activeMember
                     ? `Lead Triage: ${activeMember.language} • ${activeMember.voice.split('-')[2] || activeMember.voice} voice`
                     : selectedAgent
@@ -355,7 +521,7 @@ export function CallPanel() {
                 <button
                   type="button"
                   onClick={handleStartCall}
-                  className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-sm transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-sm transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 >
                   <Phone className="w-4 h-4 fill-current" />
                   <span>
@@ -366,7 +532,7 @@ export function CallPanel() {
                 <button
                   type="button"
                   onClick={endCall}
-                  className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 >
                   <PhoneOff className="w-4 h-4" />
                   <span>End Call</span>
@@ -416,7 +582,7 @@ export function CallPanel() {
                         <button
                           type="button"
                           onClick={() => handleWarmTransfer(idx)}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-400 text-[10px] font-bold transition"
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-400 text-[10px] font-bold transition cursor-pointer"
                         >
                           Transfer Now
                         </button>
@@ -456,7 +622,7 @@ export function CallPanel() {
                         isSelected
                           ? 'bg-obsidian-elevated border-amber-500/50 shadow-sm text-text-primary ring-1 ring-amber-500/30'
                           : 'bg-obsidian-surface border-border-subtle text-text-secondary hover:bg-obsidian-elevated hover:text-text-primary'
-                      } disabled:opacity-50`}
+                      } disabled:opacity-50 cursor-pointer`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-xs truncate max-w-[120px]">{agent.name}</span>
@@ -480,6 +646,125 @@ export function CallPanel() {
           <Transcript transcript={transcript} callState={callState} />
         </div>
       </div>
+
+      {/* ── LOCAL OLLAMA PERMISSION & LAPTOP HARDWARE CHECK MODAL ─────────── */}
+      {showOllamaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg p-6 rounded-2xl bg-obsidian-surface border border-amber-500/30 shadow-2xl space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                  <Laptop className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-text-primary">
+                    Run AI on This Laptop (Local Ollama)
+                  </h3>
+                  <p className="text-xs text-text-tertiary">Permission & Hardware Load Guard</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOllamaModal(false)}
+                className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-obsidian-elevated transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Laptop Load Advisory */}
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>Laptop Performance & Heat Notice</span>
+              </div>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Running 4B/7B language models locally uses <strong>4GB to 8GB of RAM</strong> and heavy CPU/GPU processing. If this laptop is already under heavy load, running other programs, or has low battery, it can cause fan noise or slowness.
+              </p>
+              <div className="pt-1 text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 shrink-0" />
+                <span>Tip: Cloud Gemini has 0% laptop load and runs instantly without heating your machine!</span>
+              </div>
+            </div>
+
+            {/* Connection Test Box */}
+            <div className="p-4 rounded-xl bg-obsidian-elevated border border-border-subtle space-y-3">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-text-tertiary">Local Endpoint:</span>
+                <span className="text-text-primary font-bold">http://localhost:11434</span>
+              </div>
+
+              {ollamaTestResult.status === 'checking' && (
+                <div className="p-2.5 rounded-lg bg-obsidian-surface border border-border-subtle flex items-center gap-2 text-xs font-mono text-amber-400">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>{ollamaTestResult.message}</span>
+                </div>
+              )}
+
+              {ollamaTestResult.status === 'connected' && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{ollamaTestResult.message}</span>
+                  </div>
+                  {ollamaTestResult.models.length > 0 && (
+                    <div className="text-[10px] text-text-secondary pt-1 truncate">
+                      Models: {ollamaTestResult.models.slice(0, 4).join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {ollamaTestResult.status === 'failed' && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-mono space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Ollama Not Detected on this Machine</span>
+                  </div>
+                  <p className="text-[11px] text-text-secondary font-sans leading-relaxed">
+                    {ollamaTestResult.message}
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={testLocalOllamaPing}
+                disabled={ollamaTesting}
+                className="w-full py-2 px-3 rounded-lg bg-obsidian-surface hover:bg-obsidian-hover border border-border-subtle text-xs font-semibold text-text-primary flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${ollamaTesting ? 'animate-spin' : ''}`} />
+                <span>Re-test Local Ollama Connection</span>
+              </button>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setInferenceMode('gemini');
+                  setShowOllamaModal(false);
+                }}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Cloud className="w-4 h-4" />
+                <span>Use Cloud Gemini (0% Load)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGrantOllamaPermission}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-sm cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Cpu className="w-4 h-4" />
+                <span>Grant & Run On Laptop</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,12 +11,28 @@ import {
   ExternalLink,
   Save,
   Settings2,
+  Cpu,
+  Cloud,
+  Zap,
+  RefreshCw,
+  AlertCircle,
+  HelpCircle,
 } from 'lucide-react';
-import { getStoredUser, AuthUser } from '@/lib/api';
+import { getStoredUser, AuthUser, API_BASE, getAuthToken } from '@/lib/api';
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isDark, setIsDark] = useState(true);
+
+  // Inference & Hardware Settings
+  const [inferencePreference, setInferencePreference] = useState<'gemini' | 'ollama'>('gemini');
+  const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
+  const [ollamaModel, setOllamaModel] = useState('qwen3.5:4b');
+  const [ollamaTesting, setOllamaTesting] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState<{ status: 'idle' | 'ok' | 'fail'; message: string }>({
+    status: 'idle',
+    message: '',
+  });
 
   // Gemini Settings
   const [geminiKey, setGeminiKey] = useState('');
@@ -35,7 +51,13 @@ export default function SettingsPage() {
       const storedTheme = localStorage.getItem('theme');
       setIsDark(storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches));
 
-      // Load cached keys from localStorage if present
+      // Load cached keys and hardware preferences from localStorage
+      const savedInference = localStorage.getItem('bizora_inference_mode') as 'gemini' | 'ollama';
+      if (savedInference) setInferencePreference(savedInference);
+
+      const savedOllamaUrl = localStorage.getItem('bizora_ollama_url');
+      if (savedOllamaUrl) setOllamaUrl(savedOllamaUrl);
+
       const savedGemini = localStorage.getItem('bizora_gemini_key') || '';
       if (savedGemini) setGeminiKey(savedGemini);
 
@@ -55,11 +77,11 @@ export default function SettingsPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     async function loadSettings() {
       try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('bizvoice_auth_token') : null;
-        const res = await fetch('http://127.0.0.1:8000/api/settings/keys', {
+        const token = getAuthToken();
+        const res = await fetch(`${API_BASE}/api/settings/keys`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
@@ -75,12 +97,43 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
+  const handleTestOllama = async () => {
+    setOllamaTesting(true);
+    setOllamaStatus({ status: 'idle', message: 'Connecting to local Ollama on this laptop...' });
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${ollamaUrl.replace(/\/$/, '')}/api/tags`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        const count = (data.models || []).length;
+        setOllamaStatus({
+          status: 'ok',
+          message: `Connected successfully! Found ${count} model(s) installed on this laptop.`,
+        });
+      } else {
+        setOllamaStatus({
+          status: 'fail',
+          message: `Ollama replied with HTTP error: ${res.status}`,
+        });
+      }
+    } catch {
+      setOllamaStatus({
+        status: 'fail',
+        message: `Could not reach ${ollamaUrl}. Make sure Ollama is installed and running ('ollama serve') with OLLAMA_ORIGINS="*".`,
+      });
+    } finally {
+      setOllamaTesting(false);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('bizvoice_auth_token') : null;
+      const token = getAuthToken();
       if (geminiKey && !geminiKey.includes('...')) {
-        await fetch('http://127.0.0.1:8000/api/settings/keys', {
+        await fetch(`${API_BASE}/api/settings/keys`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -90,6 +143,8 @@ export default function SettingsPage() {
         });
       }
       if (typeof window !== 'undefined') {
+        localStorage.setItem('bizora_inference_mode', inferencePreference);
+        localStorage.setItem('bizora_ollama_url', ollamaUrl);
         if (geminiKey) localStorage.setItem('bizora_gemini_key', geminiKey);
         if (twilioSid) localStorage.setItem('bizora_twilio_sid', twilioSid);
       }
@@ -116,7 +171,7 @@ export default function SettingsPage() {
             </span>
           </div>
           <p className="text-xs text-text-secondary mt-1">
-            Configure your Supabase PostgreSQL database, Google Gemini cloud LLM keys, and Twilio telephony credentials.
+            Configure your AI Inference Engine (Cloud vs Local Laptop), Supabase database, and Telephony routes.
           </p>
         </div>
 
@@ -129,41 +184,124 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSaveSettings} className="space-y-6">
-        {/* 1. Supabase Database Connection */}
-        <div className="p-6 rounded-2xl border border-border-subtle bg-obsidian-surface shadow-xs space-y-4">
+        {/* 1. Inference Engine & Hardware Load Management */}
+        <div className="p-6 rounded-2xl border border-border-subtle bg-obsidian-surface shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                <Database className="w-4 h-4" />
+                <Cpu className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-text-primary">
-                  Supabase PostgreSQL Database
+                <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <span>AI Inference Engine & Laptop Hardware Load</span>
                 </h3>
-                <p className="text-xs text-text-tertiary">Live multi-tenant database connection</p>
+                <p className="text-xs text-text-tertiary">
+                  Choose when to run models on Google Cloud (0% laptop load) vs your local machine (Ollama)
+                </p>
               </div>
             </div>
-            <span className="flex items-center gap-1 text-[11px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Connected (PostgreSQL 17.11)
+            <span className="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
+              Hardware Aware
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-            <div className="p-3.5 rounded-xl bg-obsidian-elevated border border-border-subtle space-y-1">
-              <span className="text-text-tertiary font-medium">Database Host:</span>
-              <div className="font-bold text-text-primary break-all">
-                db.vsmlvtrwgkpwxwhatbhx.supabase.co:5432
+          {/* Engine Choice Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setInferencePreference('gemini')}
+              className={`p-4 rounded-xl border text-left transition flex flex-col justify-between ${
+                inferencePreference === 'gemini'
+                  ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/40 shadow-xs'
+                  : 'border-border-subtle bg-obsidian-elevated hover:bg-obsidian-hover'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Cloud className="w-4 h-4 text-emerald-400" />
+                  <span className="font-bold text-xs text-text-primary">Google Gemini 2.5 Flash</span>
+                </div>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+                  0% LAPTOP LOAD
+                </span>
               </div>
-            </div>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Runs on Google Cloud infrastructure. Best when your laptop is under heavy load, running other programs, or to save battery and prevent fan noise.
+              </p>
+              <div className="mt-3 text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-bold">
+                <Zap className="w-3 h-3" />
+                Sub-329ms Latency • Recommended
+              </div>
+            </button>
 
-            <div className="p-3.5 rounded-xl bg-obsidian-elevated border border-border-subtle space-y-1">
-              <span className="text-text-tertiary font-medium">Supabase Project URL:</span>
-              <div className="font-bold text-text-primary break-all">
-                https://vsmlvtrwgkpwxwhatbhx.supabase.co
+            <button
+              type="button"
+              onClick={() => setInferencePreference('ollama')}
+              className={`p-4 rounded-xl border text-left transition flex flex-col justify-between ${
+                inferencePreference === 'ollama'
+                  ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/40 shadow-xs'
+                  : 'border-border-subtle bg-obsidian-elevated hover:bg-obsidian-hover'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-amber-400" />
+                  <span className="font-bold text-xs text-text-primary">Local Ollama</span>
+                </div>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">
+                  ON-DEVICE
+                </span>
               </div>
-            </div>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Runs directly on your laptop (qwen3.5:4b, llama3). 100% private, sovereign data. Requires 4GB–8GB free RAM and uses local CPU/GPU.
+              </p>
+              <div className="mt-3 text-[10px] font-mono text-text-tertiary flex items-center gap-1">
+                <span>Requires local Ollama daemon</span>
+              </div>
+            </button>
           </div>
+
+          {/* Local Ollama Endpoint Config */}
+          {inferencePreference === 'ollama' && (
+            <div className="p-4 rounded-xl bg-obsidian-elevated border border-border-subtle space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-text-secondary">
+                  Local Ollama URL on This Laptop
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTestOllama}
+                  disabled={ollamaTesting}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-mono font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${ollamaTesting ? 'animate-spin' : ''}`} />
+                  <span>Test Local Connection</span>
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={ollamaUrl}
+                onChange={(e) => setOllamaUrl(e.target.value)}
+                placeholder="http://localhost:11434"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-border-subtle bg-obsidian-surface font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+
+              {ollamaStatus.status === 'ok' && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{ollamaStatus.message}</span>
+                </div>
+              )}
+
+              {ollamaStatus.status === 'fail' && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-mono flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{ollamaStatus.message}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 2. Google Gemini Cloud LLM */}
@@ -175,23 +313,20 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-text-primary">
-                  Google Gemini (Cloud LLM - 0% Laptop Load)
+                  Google Gemini API Configuration
                 </h3>
                 <p className="text-xs text-text-tertiary">
-                  Runs directly on Google AI infrastructure. Eliminates GPU heat, fan noise, and laptop battery drain.
+                  Powers zero-load conversational turn-taking with Gemini 2.5 Flash
                 </p>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
-              Recommended
-            </span>
           </div>
 
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-text-secondary">
-                  Gemini API Key
+                  Gemini API Key (Optional Override)
                 </label>
                 <a
                   href="https://aistudio.google.com/apikey"
@@ -205,13 +340,13 @@ export default function SettingsPage() {
               </div>
               <input
                 type="password"
-                placeholder="AIzaSy..."
+                placeholder="AIzaSy... (leave blank to use system key)"
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-border-subtle bg-obsidian-elevated font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
               <p className="text-[11px] text-text-tertiary mt-1">
-                When provided, voice agents execute in Google Cloud with sub-329ms latency.
+                A server default key is already configured. You can supply your personal key for dedicated quotas.
               </p>
             </div>
 
@@ -244,7 +379,7 @@ export default function SettingsPage() {
                   Twilio Account & Webhook Integration
                 </h3>
                 <p className="text-xs text-text-tertiary">
-                  BYOT (Bring Your Own Twilio): Pay raw carrier rates (~\$0.01/min) with zero Vapi markup.
+                  BYOT (Bring Your Own Twilio): Pay raw carrier rates (~$0.01/min) with zero Vapi markup.
                 </p>
               </div>
             </div>
@@ -339,7 +474,7 @@ export default function SettingsPage() {
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs hover:scale-[1.01] active:scale-[0.99]"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
           >
             <Save className="w-4 h-4" />
             <span>Save Workspace Settings</span>

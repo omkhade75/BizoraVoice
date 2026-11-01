@@ -387,8 +387,8 @@ class LLMEngine:
             data = resp.json()
             content = data.get("message", {}).get("content", "")
             return content.strip()
-        except httpx.ConnectError:
-            logger.warning("Ollama not reachable at %s. Attempting Gemini/Dialogue fallback...", self._ollama_base_url)
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as err:
+            logger.warning("Ollama unavailable or overloaded (%s). Attempting Gemini/Dialogue fallback...", err)
             settings = get_settings()
             key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
             if key:
@@ -434,8 +434,8 @@ class LLMEngine:
                     token = data.get("message", {}).get("content", "")
                     if token:
                         yield token
-        except httpx.ConnectError:
-            logger.warning("Ollama not reachable at %s. Checking Gemini cloud fallback...", self._ollama_base_url)
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as err:
+            logger.warning("Ollama unavailable or overloaded (%s). Checking Gemini cloud fallback...", err)
             settings = get_settings()
             key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
             if key:
