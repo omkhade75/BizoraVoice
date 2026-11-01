@@ -229,9 +229,9 @@ export function CallPanel() {
       startCall(
         selectedAgentId || undefined,
         selectedAgent?.language,
-        undefined,
-        undefined,
-        undefined,
+        selectedAgent?.system_prompt,
+        selectedAgent?.voice,
+        selectedAgent?.greeting_message,
         effectiveModel,
         inferenceMode
       );

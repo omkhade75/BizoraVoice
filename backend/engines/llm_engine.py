@@ -49,7 +49,7 @@ class PromptAwareDialogueEngine:
                 points = s_parts
         return points
 
-    def generate_reply(self, messages: list[dict], system_prompt: str | None = None) -> str:
+    def generate_reply(self, messages: list[dict], system_prompt: str | None = None, voice: str | None = None) -> str:
         prompt_text = (system_prompt or "").strip()
         prompt_lower = prompt_text.lower()
 
@@ -61,16 +61,48 @@ class PromptAwareDialogueEngine:
         last_assistant_msg = assistant_msgs[-1]["content"].lower() if assistant_msgs else ""
 
         # Language Detection
-        is_marathi = any(k in prompt_lower for k in ["marathi", "मराठी", "महाराष्ट्र", "भाऊ", "कांदा"]) or any(k in last_msg for k in ["होय", "नाही", "सांगा", "नमस्कार", "भाव", "दर", "माल", "सप्लायर", "एस एस"])
-        is_hindi = any(k in prompt_lower for k in ["hindi", "हिन्दी", "नमस्ते", "कमरा", "इलाज"]) or any(k in last_msg for k in ["हाँ", "नमस्ते", "बताइए", "दवा", "कीमत", "बिल"])
-        is_gujarati = any(k in prompt_lower for k in ["gujarati", "ગુજરાતી", "રાજકોટ", "ભાવ"]) or any(k in last_msg for k in ["હા", "નમસ્તે", "ભાવ"])
+        v_str = (voice or "").lower()
+        has_devanagari = bool(re.search(r"[\u0900-\u097F]", last_msg))
+
+        is_marathi = (
+            v_str.startswith("mr-")
+            or any(k in prompt_lower for k in ["marathi", "मराठी", "महाराष्ट्र", "भाऊ", "कांदा"])
+            or any(k in last_msg for k in ["होय", "नाही", "सांगा", "नमस्कार", "भाव", "दर", "माल", "सप्लायर", "एस एस", "हॅलो", "कोण", "नाव", "माहिती"])
+            or (has_devanagari and not any(k in last_msg for k in ["हाँ", "नमस्ते", "बताइए", "कमरा", "इलाज"]))
+        )
+        is_hindi = (
+            v_str.startswith("hi-")
+            or any(k in prompt_lower for k in ["hindi", "हिन्दी", "नमस्ते", "कमरा", "इलाज"])
+            or any(k in last_msg for k in ["हाँ", "नमस्ते", "बताइए", "दवा", "कीमत", "बिल"])
+        )
+        is_gujarati = (
+            v_str.startswith("gu-")
+            or any(k in prompt_lower for k in ["gujarati", "ગુજરાતી", "રાજકોટ", "ભાવ"])
+            or any(k in last_msg for k in ["હા", "નમસ્તે", "ભાવ"])
+        )
 
         # Intent Detection
+        is_identity = any(w in last_msg for w in [
+            "name", "नाव", "नाम", "who are you", "who is this", "व्हॉट इज युअर नेम",
+            "युअर नेम", "नेम", "कोण बोलतंय", "कोण आहेस", "तुमचं नाव", "तुम्ही कोण",
+            "कॉल कशासाठी", "who is speaking", "who is calling"
+        ])
+
+        is_greeting = any(w in last_msg for w in [
+            "hello", "hi", "hey", "हॅलो", "हेलो", "नमस्ते", "नमस्कार", "हॅलो कोण", "good morning", "good afternoon"
+        ])
+
+        is_more_info = any(w in last_msg for w in [
+            "more", "info", "information", "detail", "details", "माहिती", "सांगा",
+            "पुढे", "आगे", "दूसरा", "पुढचा", "give me more information", "more info",
+            "tell me more", "plan 2", "second plan", "give me more"
+        ])
+
         is_affirmative = any(w in last_msg for w in [
             "yes", "yeah", "yep", "sure", "ok", "okay", "tell me", "i am free", "free",
             "proceed", "go ahead", "please", "ha", "haan", "ho", "aaho", "thik", "theek",
             "boliye", "sanga", "chalo", "done", "continue", "interested", "एस एस", "होय", "सांगा"
-        ])
+        ]) or is_more_info
         is_negative = any(w in last_msg for w in ["no", "not now", "busy", "later", "nahi", "nako", "cancel", "stop", "never", "नाही", "नको"])
         is_pricing = any(w in last_msg for w in [
             "price", "cost", "premium", "rate", "how much", "charges", "fees", "quote",
@@ -79,7 +111,7 @@ class PromptAwareDialogueEngine:
         is_network = any(w in last_msg for w in ["hospital", "network", "cashless", "claim", "doctor", "empanelled", "दवाखाना"])
         is_family = any(w in last_msg for w in ["family", "floater", "children", "kids", "wife", "spouse", "कुटुंब", "परिवार"])
         is_senior = any(w in last_msg for w in ["senior", "parents", "elderly", "old", "60", "आई वडील", "माता पिता"])
-        is_next = any(w in last_msg for w in ["next", "second", "another", "more", "other", "pudhcha", "dusra", "aage", "पुढील", "दूसरा"])
+        is_next = any(w in last_msg for w in ["next", "second", "another", "more", "other", "pudhcha", "dusra", "aage", "पुढील", "दूसरा"]) or is_more_info
 
         # Squad Transfer Trigger Keywords
         is_supplier_trigger = any(w in last_msg for w in [
@@ -101,23 +133,60 @@ class PromptAwareDialogueEngine:
                 return "काही हरकत नाही! जेव्हा आपल्याला मदत हवी असेल तेव्हा नक्की सांगा. आपला दिवस शुभ जावो!"
             return "नमस्ते! बिझोरा फ्रंट डेस्कवर आपले स्वागत आहे. मी आपल्याला आमच्या मराठी सप्लायर क्लोजर (मनोहर) किंवा बिलिंग डेस्ककडे हस्तांतरित करू शकते. आपण कोणाशी बोलू इच्छिता?"
 
-        # ── Domain 1: Medicare / Mediclaim / Health Insurance ────────────────
-        if any(k in prompt_lower for k in ["medicare", "mediclaim", "insurance", "health plan", "policy", "पॉलिसी", "विमा"]):
+        # ── Domain 1: Medicare / Mediclaim / Health Insurance / Maya ────────
+        if any(k in prompt_lower for k in ["medicare", "mediclaim", "insurance", "health plan", "policy", "पॉलिसी", "विमा", "maya"]):
+            # Identity inquiry ("who are you", "what is your name", "व्हॉट इज युअर नेम")
+            if is_identity:
+                if is_marathi:
+                    return (
+                        "नमस्कार! माझे नाव माया आहे, मी बिझोरा हेल्थकेअरची अधिकृत मेडिक्लेम आरोग्य विमा सल्लागार आहे. "
+                        "मी आपल्यासाठी आणि आपल्या संपूर्ण कुटुंबासाठी उत्तम कॅशलेस आरोग्य संरक्षण योजना सांगण्यासाठी कॉल केला आहे. "
+                        "मी पहिली योजना समजावून सांगू का?"
+                    )
+                elif is_hindi:
+                    return (
+                        "नमस्ते! मेरा नाम माया है, मैं बिझोरा हेल्थकेअर की मेडिक्लेम स्वास्थ्य सुरक्षा सलाहकार हूँ। "
+                        "मैं आपके और आपके परिवार के लिए बेहतरीन कैशलेस स्वास्थ्य योजनाएं बताने के लिए कॉल कर रही हूँ। "
+                        "क्या मैं पहला प्लान समझाऊं?"
+                    )
+                return (
+                    "Hello! My name is Maya, your personal healthcare and Mediclaim advisory specialist from Bizora Voice. "
+                    "I am calling to share our top cashless hospitalization health plans for you and your family. "
+                    "Shall I walk you through Plan 1?"
+                )
+
+            # Greeting inquiry ("hello", "हॅलो", "hi")
+            if is_greeting and user_turn <= 1:
+                if is_marathi:
+                    return (
+                        "हॅलो, नमस्कार! मी माया, बिझोरा हेल्थकेअरकडून आपल्या कुटुंबाच्या मेडिक्लेम आरोग्य विमा संरक्षणाबद्दल बोलत आहे. "
+                        "आपण २ मिनिटे मोकळे आहात का? आमच्या नवीन आरोग्य योजना जाणून घेण्यासाठी."
+                    )
+                elif is_hindi:
+                    return (
+                        "हेलो, नमस्ते! मैं माया, बिझोरा हेल्थकेअर से आपके परिवार की मेडिक्लेम सुरक्षा के बारे में बात कर रही हूँ। "
+                        "क्या आपके पास हमारे नए हेल्थ प्लान्स जानने के लिए २ मिनट का समय है?"
+                    )
+                return (
+                    "Hello! Good afternoon. I am Maya calling from Bizora Healthcare regarding your family Mediclaim health protection. "
+                    "Are you free to talk for a minute to hear our top plans?"
+                )
+
             if is_marathi:
                 if is_negative:
                     return "काही हरकत नाही! आपल्याला जेव्हा आरोग्य विम्याबद्दल माहिती हवी असेल तेव्हा नक्की संपर्क करा. आपला दिवस शुभ जावो!"
                 if is_pricing:
-                    return "आमच्या मेडिक्लेम योजनांचा मासिक हप्ता फक्त ₹४५० पासून सुरू होतो, आणि फॅमिली फ्लोटरचा हप्ता ₹८५० पासून आहे. आयकर कलम 80D अंतर्गत ₹२५,००० पर्यंत करबचत मिळते. आपल्याला हॉस्पिटलचे नेटवर्क जाणून घ्यायचे आहे का?"
+                    return "आमच्या मेडिक्लेम योजनांचा मासिक हप्ता फक्त ₹४५० (वैयक्तिक कव्हर) आणि ₹८५० (संपूर्ण फॅमिली फ्लोटर) पासून सुरू होतो. आयकर कलम 80D अंतर्गत ₹२५,००० पर्यंत करबचत मिळते. आम्ही व्हॉट्सॲपवर कोटेशन पाठवू का?"
                 if is_network:
                     return "महाराष्ट्रासह देशभरात आमचे ८,५०० हून अधिक कॅशलेस नेटवर्क हॉस्पिटल्स आहेत, जिथे ३० मिनिटांत कॅशलेस उपचार मंजूर होतात. मी पुढील योजना समजावून सांगू का?"
-                if user_turn <= 1 or (is_affirmative and "मुक्त" in last_assistant_msg or "free" in last_assistant_msg):
-                    return "उत्तम! मी आपल्यासाठी आमच्या मेडिक्लेम योजना एक-एक करून सांगतो.\n\nपहिली योजना: **आरोग्य संजीवनी योजना**—यात १० लाख रुपयांचे संपूर्ण हॉस्पिटलायझेशन कव्हरेज मिळते, ज्यामध्ये pre आणि post उपचार खर्च आणि शून्य को-पे समाविष्ट आहे.\n\nआपल्याला दुसरी योजना—कौटुंबिक फॅमिली फ्लोटर कव्हर—ऐकायची आहे का?"
-                elif user_turn == 2 or is_family or is_next:
-                    return "दुसरी योजना: **युनिव्हर्सल फॅमिली हेल्थ शील्ड**—यात तुम्ही, तुमची पत्नी आणि ३ मुले अशा संपूर्ण कुटुंबाला २५ लाख रुपयांचे एकत्रित कव्हर मिळते. यात मोफत वार्षिक आरोग्य तपासणी आणि कॅशलेस उपचार आहेत.\n\nयाचा परवडणारा मासिक हप्ता सांगू की ज्येष्ठ नागरिकांसाठीची योजना सांगू?"
+                if user_turn <= 1 or (is_affirmative and ("मुक्त" in last_assistant_msg or "free" in last_assistant_msg or "सांगू" in last_assistant_msg)):
+                    return "उत्तम! मी आपल्यासाठी आमच्या मेडिक्लेम योजना एक-एक करून सांगते.\n\nपहिली योजना: **आरोग्य संजीवनी योजना**—यात १० लाख रुपयांचे संपूर्ण हॉस्पिटलायझेशन कव्हरेज मिळते, ज्यामध्ये pre आणि post उपचार खर्च आणि शून्य को-पे समाविष्ट आहे. देशभरात ८,५०० कॅशलेस हॉस्पिटल्स आहेत.\n\nआपल्याला दुसरी योजना—कौटुंबिक फॅमिली फ्लोटर कव्हर—ऐकायची आहे का?"
+                elif user_turn == 2 or is_family or is_next or is_more_info:
+                    return "दुसरी योजना: **युनिव्हर्सल फॅमिली हेल्थ शील्ड**—यात तुम्ही, तुमची पत्नी आणि ३ मुले अशा संपूर्ण कुटुंबाला २५ लाख रुपयांचे एकत्रित कव्हर मिळते. यात मोफत वार्षिक आरोग्य तपासणी आणि ३० मिनिटांत कॅशलेस उपचार आहेत.\n\nयाचा परवडणारा मासिक हप्ता सांगू की ज्येष्ठ नागरिकांसाठीची योजना सांगू?"
                 elif user_turn == 3 or is_pricing:
-                    return "फॅमिली फ्लोटरचा मासिक हप्ता फक्त ₹८५० पासून सुरू होतो. कलम 80D अंतर्गत २५,००० रुपयांपर्यंत करसवलत मिळते.\n\nआम्ही आपल्या व्हॉट्सॲपवर संपूर्ण माहितीपत्रक आणि अधिकृत कोटेशन पाठवू का?"
+                    return "फॅमिली फ्लोटरचा मासिक हप्ता फक्त ₹८५० पासून सुरू होतो (किंवा वैयक्तिक कव्हर ₹४५०). कलम 80D अंतर्गत २५,००० रुपयांपर्यंत करसवलत मिळते.\n\nआम्ही आपल्या व्हॉट्सॲपवर संपूर्ण माहितीपत्रक आणि अधिकृत कोटेशन पाठवू का?"
                 else:
-                    return "नक्कीच! आपली नोंदणी पूर्ण झाली आहे. आमचे वरिष्ठ आरोग्य विमा सल्लागार त्वरित आपल्याशी संपर्क साधतील. बिझोरा व्हॉईसशी बोलल्याबद्दल धन्यवाद!"
+                    return "नक्कीच! आपली नोंदणी पूर्ण झाली आहे. आमचे वरिष्ठ आरोग्य विमा सल्लागार अधिकृत कोटेशनसह त्वरित आपल्याशी संपर्क साधतील. बिझोरा व्हॉईसशी बोलल्याबद्दल धन्यवाद!"
 
             elif is_hindi:
                 if is_negative:
@@ -127,8 +196,8 @@ class PromptAwareDialogueEngine:
                 if is_network:
                     return "हम ८,५०० से अधिक कैशलेस अस्पतालों का नेटवर्क प्रदान करते हैं जहाँ ३० मिनट के भीतर कैशलेस अप्रूवल मिल जाता है। क्या मैं फैमिली फ्लोटर प्लान के बारे में बताऊं?"
                 if user_turn <= 1:
-                    return "बहुत बढ़िया! मैं आपको हमारे प्रमुख मेडिक्लेम प्लान्स एक-एक करके समझाता हूँ।\n\nपहला प्लान: **आरोग्य संजीवनी सुरक्षा प्लान**—इसमें आपको १० लाख रुपये तक का कैशलेस हॉस्पिटलाइजेशन कवर, भर्ती पूर्व व पश्चात खर्च और शून्य को-पे की सुविधा मिलती है।\n\nक्या आप हमारे फैमिली फ्लोटर प्लान के बारे में भी जानना चाहेंगे?"
-                elif user_turn == 2 or is_family or is_next:
+                    return "बहुत बढ़िया! मैं आपको हमारे प्रमुख मेडिक्लेम प्लान्स एक-एक करके समझाती हूँ।\n\nपहला प्लान: **आरोग्य संजीवनी सुरक्षा प्लान**—इसमें आपको १० लाख रुपये तक का कैशलेस हॉस्पिटलाइजेशन कवर, भर्ती पूर्व व पश्चात खर्च और शून्य को-पे की सुविधा मिलती है।\n\nक्या आप हमारे फैमिली फ्लोटर प्लान के बारे में भी जानना चाहेंगे?"
+                elif user_turn == 2 or is_family or is_next or is_more_info:
                     return "दूसरा प्लान: **कॉम्प्रिहेंसिव फैमिली फ्लोटर प्लान**—इसमें आप, आपकी पत्नी और ३ बच्चे कुल २५ लाख रुपये के सम इंश्योर्ड में कवर होते हैं। इसमें सालाना मुफ्त चेकअप और मैटरनिटी कवर भी शामिल है।\n\nक्या आप इसके मासिक प्रीमियम या सीनियर सिटीजन कवर के बारे में जानना चाहेंगे?"
                 elif user_turn == 3 or is_pricing:
                     return "फैमिली फ्लोटर का प्रीमियम मात्र ₹८५० प्रति माह से शुरू होता है और धारा 80D के तहत टैक्स छूट भी मिलती है। क्या मैं आपके वॉट्सऐप पर इसका डिजिटल कोटेशन भेज दूं?"
@@ -154,7 +223,7 @@ class PromptAwareDialogueEngine:
                     "and zero co-payment.\n\n"
                     "Would you like to hear about Plan 2—our Comprehensive Family Floater cover—or do you have questions about this plan?"
                 )
-            elif user_turn == 2 or is_family or is_next:
+            elif user_turn == 2 or is_family or is_next or is_more_info:
                 return (
                     "Plan 2: Our **Comprehensive Family Floater Plan**. This secures you, your spouse, and up to 3 dependent "
                     "children under a unified ₹25 Lakhs sum insured. It features zero room-rent limits, free annual full-body checkups, "
@@ -219,26 +288,40 @@ class PromptAwareDialogueEngine:
             return "Your reservation has been confirmed. A booking voucher with check-in instructions has been dispatched. We look forward to welcoming you!"
 
         # ── Domain 6: Natural Conversational Fallback (Never Speak Raw Prompt) ─
+        if is_identity:
+            if is_marathi:
+                return "नमस्कार! मी आपला व्हॉईस असिस्टंट आहे. मी आज आपली कशी मदत करू शकतो सांगा?"
+            if is_hindi:
+                return "नमस्ते! मैं आपका वॉइस असिस्टेंट हूँ। बताइए आज मैं आपकी क्या सहायता कर सकता हूँ?"
+            return "Hello! I am your AI voice assistant. How may I assist you today?"
+
+        if is_greeting:
+            if is_marathi:
+                return "हॅलो, नमस्कार! मी ऐकत आहे, सांगा आज काय मदत हवी आहे?"
+            if is_hindi:
+                return "हेलो, नमस्ते! बताइए मैं आपकी क्या सहायता कर सकता हूँ?"
+            return "Hello! Good day. How may I assist you today?"
+
         if is_marathi:
             if is_affirmative:
                 return "होय, मी समजलो! आपल्या गरजेनुसार मी पुढील प्रक्रिया करत आहे. सांगा, आपल्याला आणखी काय माहिती हवी आहे?"
             if is_negative:
                 return "काही हरकत नाही! आपल्याला जेव्हा आवश्यकता असेल तेव्हा नक्की सांगा. आपला दिवस शुभ जावो!"
-            return f"आपला संदेश मिळाला: '{last_msg}'. मी आपल्याला कशी मदत करू शकतो सांगा?"
+            return "होय, मी ऐकत आहे. याबद्दल आपल्याला काय माहिती हवी आहे किंवा कशी मदत करू ते सांगा?"
 
         if is_hindi:
             if is_affirmative:
                 return "जी बिल्कुल, मैंने नोट कर लिया है! आगे की प्रक्रिया शुरू की जा रही है। क्या आप कोई अन्य जानकारी चाहते हैं?"
             if is_negative:
                 return "कोई बात नहीं! जब भी आपको सहायता की आवश्यकता हो, हमें बताएं। आपका दिन शुभ हो!"
-            return f"जी, मैंने आपका संदेश सुन लिया है: '{last_msg}'. बताइए मैं आपकी क्या सहायता कर सकता हूँ?"
+            return "जी, मैं सुन रहा हूँ। बताइए इस विषय में आप क्या जानकारी चाहते हैं?"
 
         if is_affirmative:
             return "Understood and noted! I am actively assisting you according to your requirements. What specific detail or next step would you like to explore?"
         if is_negative:
             return "Understood. Please let me know whenever you would like to proceed, and I will be right here to assist you."
 
-        return f"Thank you for connecting with Bizora Voice. I have received your message: '{last_msg}'. How else may I assist you with this?"
+        return "Understood! How would you like to proceed, or what additional details can I share with you?"
 
 
 class LLMEngine:
@@ -376,6 +459,7 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str | None = None,
         api_key: str | None = None,
+        voice: str | None = None,
     ) -> str:
         """Send chat request and return complete response text."""
         settings = get_settings()
@@ -383,8 +467,8 @@ class LLMEngine:
         model = model or (self._gemini_default_model if key else self._ollama_model)
 
         if self.is_gemini_model(model):
-            return await self._chat_gemini(messages, system_prompt, model, api_key=key)
-        return await self._chat_ollama(messages, system_prompt, model, api_key=key)
+            return await self._chat_gemini(messages, system_prompt, model, api_key=key, voice=voice)
+        return await self._chat_ollama(messages, system_prompt, model, api_key=key, voice=voice)
 
     async def chat_stream(
         self,
@@ -392,6 +476,7 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str | None = None,
         api_key: str | None = None,
+        voice: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat tokens from Gemini, Ollama, or Dialogue Engine."""
         settings = get_settings()
@@ -399,10 +484,10 @@ class LLMEngine:
         target_model = model or (self._gemini_default_model if key else self._ollama_model)
 
         if self.is_gemini_model(target_model):
-            async for token in self._chat_stream_gemini(messages, system_prompt, target_model, api_key=key):
+            async for token in self._chat_stream_gemini(messages, system_prompt, target_model, api_key=key, voice=voice):
                 yield token
         else:
-            async for token in self._chat_stream_ollama(messages, system_prompt, target_model, api_key=key):
+            async for token in self._chat_stream_ollama(messages, system_prompt, target_model, api_key=key, voice=voice):
                 yield token
 
     # ── Ollama Implementation ───────────────────────────────────────────
@@ -413,6 +498,7 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str | None = None,
         api_key: str | None = None,
+        voice: str | None = None,
     ) -> str:
         model = model or self._ollama_model
         payload = {
@@ -434,14 +520,14 @@ class LLMEngine:
             key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
             if key:
                 try:
-                    return await self._chat_gemini(messages, system_prompt, settings.gemini_model, api_key=key)
+                    return await self._chat_gemini(messages, system_prompt, settings.gemini_model, api_key=key, voice=voice)
                 except Exception as ge:
                     logger.warning("Gemini fallback failed: %s", ge)
 
-            return self._prompt_engine.generate_reply(messages, system_prompt)
+            return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
         except Exception as exc:
             logger.error("LLM chat error: %s", exc, exc_info=True)
-            return self._prompt_engine.generate_reply(messages, system_prompt)
+            return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
 
     async def _chat_stream_ollama(
         self,
@@ -449,6 +535,7 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str | None = None,
         api_key: str | None = None,
+        voice: str | None = None,
     ) -> AsyncGenerator[str, None]:
         model = model or self._ollama_model
         payload = {
@@ -481,18 +568,18 @@ class LLMEngine:
             key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
             if key:
                 try:
-                    async for token in self._chat_stream_gemini(messages, system_prompt, settings.gemini_model, api_key=key):
+                    async for token in self._chat_stream_gemini(messages, system_prompt, settings.gemini_model, api_key=key, voice=voice):
                         yield token
                     return
                 except Exception as ge:
                     logger.warning("Gemini cloud fallback failed: %s", ge)
 
-            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
+            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
             for word in fallback_text.split(" "):
                 yield word + " "
         except Exception as exc:
             logger.error("LLM stream error: %s", exc, exc_info=True)
-            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
+            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
             for word in fallback_text.split(" "):
                 yield word + " "
 
@@ -514,11 +601,12 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str = "gemini-2.0-flash",
         api_key: str | None = None,
+        voice: str | None = None,
     ) -> str:
         settings = get_settings()
         key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
         if not key:
-            return self._prompt_engine.generate_reply(messages, system_prompt)
+            return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
 
         primary_model = self._normalize_gemini_model(model)
         models_to_try = [primary_model]
@@ -543,7 +631,7 @@ class LLMEngine:
             except Exception as e:
                 logger.warning("Gemini model %s error: %s", target_m, e)
 
-        return self._prompt_engine.generate_reply(messages, system_prompt)
+        return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
 
     async def _chat_stream_gemini(
         self,
@@ -551,11 +639,12 @@ class LLMEngine:
         system_prompt: str | None = None,
         model: str = "gemini-2.0-flash",
         api_key: str | None = None,
+        voice: str | None = None,
     ) -> AsyncGenerator[str, None]:
         settings = get_settings()
         key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
         if not key:
-            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
+            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
             for word in fallback_text.split(" "):
                 yield word + " "
             return
@@ -603,6 +692,6 @@ class LLMEngine:
                 logger.warning("Gemini stream %s exception: %s", target_m, exc)
 
         # Fallback to zero-dependency dialogue engine
-        fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
+        fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
         for word in fallback_text.split(" "):
             yield word + " "

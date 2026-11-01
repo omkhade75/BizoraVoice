@@ -148,6 +148,7 @@ class VoicePipeline:
                 system_prompt=self.session.system_prompt,
                 model=self.session.model,
                 api_key=self.session.gemini_api_key,
+                voice=self.session.voice,
             ):
                 if self.session.interrupted:
                     break
