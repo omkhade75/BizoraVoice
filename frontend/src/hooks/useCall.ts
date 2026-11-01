@@ -13,7 +13,11 @@ export interface TranscriptItem {
   timestamp: Date;
 }
 
-export function useCall() {
+export interface UseCallOptions {
+  onAgentTransferred?: (data: { agent_idx: number; agent_name: string; voice: string; transfer_phrase?: string }) => void;
+}
+
+export function useCall(options?: UseCallOptions) {
   const [isInCall, setIsInCall] = useState(false);
   const [callState, setCallState] = useState<CallState>('idle');
   const [isMuted, setIsMuted] = useState(false);
@@ -71,6 +75,7 @@ export function useCall() {
     onAudioReceived: handleAudioReceived,
     onTranscript: handleTranscript,
     onStateChange: handleStateChange,
+    onAgentTransferred: options?.onAgentTransferred,
     onError: (err) => setError(err),
     onClose: () => {
       endCall();
@@ -185,7 +190,9 @@ export function useCall() {
     voice?: string,
     greeting?: string,
     model?: string,
-    inferenceMode?: 'gemini' | 'ollama'
+    inferenceMode?: 'gemini' | 'ollama',
+    squadId?: string,
+    squadMembers?: any[]
   ) => {
     try {
       setError(null);
@@ -197,7 +204,7 @@ export function useCall() {
       const localInferenceMode = (typeof window !== 'undefined' ? localStorage.getItem('bizora_inference_mode') : null) || 'gemini';
       const effectiveMode = inferenceMode || (localInferenceMode as 'gemini' | 'ollama');
       const localModel = typeof window !== 'undefined' ? localStorage.getItem('bizora_selected_model') || undefined : undefined;
-      const effectiveModel = model || localModel || (effectiveMode === 'gemini' ? 'gemini-2.5-flash' : 'qwen3.5:4b');
+      const effectiveModel = model || localModel || (effectiveMode === 'gemini' ? 'gemini-2.0-flash' : 'qwen3.5:4b');
 
       const startRes = await fetch(`${API_BASE}/api/calls/start`, {
         method: 'POST',
@@ -213,6 +220,8 @@ export function useCall() {
           voice: voice || null,
           greeting_message: greeting || null,
           gemini_api_key: localGeminiKey,
+          squad_id: squadId || null,
+          squad_members: squadMembers || null,
         }),
       });
 
@@ -245,12 +254,14 @@ export function useCall() {
     agentName: string,
     voice: string,
     systemPrompt?: string,
-    transferPhrase?: string
+    transferPhrase?: string,
+    targetIdx?: number
   ) => {
     if (ws.isConnected) {
       ws.sendJson({
         type: 'transfer',
         agent_name: agentName,
+        agent_idx: targetIdx,
         voice,
         system_prompt: systemPrompt,
         transfer_phrase: transferPhrase || `Transferring you to ${agentName}.`,

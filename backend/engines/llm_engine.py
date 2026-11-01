@@ -61,25 +61,45 @@ class PromptAwareDialogueEngine:
         last_assistant_msg = assistant_msgs[-1]["content"].lower() if assistant_msgs else ""
 
         # Language Detection
-        is_marathi = any(k in prompt_lower for k in ["marathi", "मराठी", "महाराष्ट्र", "भाऊ", "कांदा"]) or any(k in last_msg for k in ["होय", "नाही", "सांगा", "नमस्कार", "भाव"])
-        is_hindi = any(k in prompt_lower for k in ["hindi", "हिन्दी", "नमस्ते", "कमरा", "इलाज"]) or any(k in last_msg for k in ["हाँ", "नमस्ते", "बताइए", "दवा", "कीमत"])
+        is_marathi = any(k in prompt_lower for k in ["marathi", "मराठी", "महाराष्ट्र", "भाऊ", "कांदा"]) or any(k in last_msg for k in ["होय", "नाही", "सांगा", "नमस्कार", "भाव", "दर", "माल", "सप्लायर", "एस एस"])
+        is_hindi = any(k in prompt_lower for k in ["hindi", "हिन्दी", "नमस्ते", "कमरा", "इलाज"]) or any(k in last_msg for k in ["हाँ", "नमस्ते", "बताइए", "दवा", "कीमत", "बिल"])
         is_gujarati = any(k in prompt_lower for k in ["gujarati", "ગુજરાતી", "રાજકોટ", "ભાવ"]) or any(k in last_msg for k in ["હા", "નમસ્તે", "ભાવ"])
 
         # Intent Detection
         is_affirmative = any(w in last_msg for w in [
             "yes", "yeah", "yep", "sure", "ok", "okay", "tell me", "i am free", "free",
             "proceed", "go ahead", "please", "ha", "haan", "ho", "aaho", "thik", "theek",
-            "boliye", "sanga", "chalo", "done", "continue", "interested"
+            "boliye", "sanga", "chalo", "done", "continue", "interested", "एस एस", "होय", "सांगा"
         ])
-        is_negative = any(w in last_msg for w in ["no", "not now", "busy", "later", "nahi", "nako", "cancel", "stop", "never"])
+        is_negative = any(w in last_msg for w in ["no", "not now", "busy", "later", "nahi", "nako", "cancel", "stop", "never", "नाही", "नको"])
         is_pricing = any(w in last_msg for w in [
             "price", "cost", "premium", "rate", "how much", "charges", "fees", "quote",
-            "kimat", "bhav", "dar", "kitna", "kharcha", "rupees", "rs", "हप्ता"
+            "kimat", "bhav", "dar", "kitna", "kharcha", "rupees", "rs", "हप्ता", "भाव", "दर", "रुपये"
         ])
         is_network = any(w in last_msg for w in ["hospital", "network", "cashless", "claim", "doctor", "empanelled", "दवाखाना"])
         is_family = any(w in last_msg for w in ["family", "floater", "children", "kids", "wife", "spouse", "कुटुंब", "परिवार"])
         is_senior = any(w in last_msg for w in ["senior", "parents", "elderly", "old", "60", "आई वडील", "माता पिता"])
         is_next = any(w in last_msg for w in ["next", "second", "another", "more", "other", "pudhcha", "dusra", "aage", "पुढील", "दूसरा"])
+
+        # Squad Transfer Trigger Keywords
+        is_supplier_trigger = any(w in last_msg for w in [
+            "मराठी सप्लायर", "सप्लायर", "supplier", "मराठी", "कांदा", "बटाटा", "closer", "व्यापारी", "बाजार", "मंडी", "दर", "खरेदी", "माल", "मनोहर"
+        ])
+        is_billing_trigger = any(w in last_msg for w in [
+            "billing", "bill", "बिल", "खाते", "payment", "पेमेंट", "invoice", "पावती", "हिशोब", "रक्कम", "upi"
+        ])
+
+        # ── Domain 0: Front-Desk Receptionist Triage & Intent Classifier ─────────
+        if any(k in prompt_lower for k in ["triage", "receptionist", "front desk", "initial greeter", "intent classifier", "रिसेप्शन"]):
+            if is_supplier_trigger:
+                return "नक्कीच! मी आपल्याला त्वरित आमच्या कृषी आणि घाऊक बाजार specialist मनोहर यांच्याकडे ट्रान्सफर करत आहे... [AUTO_TRANSFER:member-2]"
+            if is_billing_trigger:
+                return "अवश्य! मी आपल्याला त्वरित आमच्या बिलिंग आणि अकाउंट्स डेस्ककडे ट्रान्सफर करत आहे... [AUTO_TRANSFER:member-3]"
+            if is_affirmative:
+                return "उत्तम! सांगा, आपल्याला आज कोणत्या विभागाशी बोलायचे आहे? आमच्या मराठी कृषी सप्लायर मनोहर यांच्याशी की बिलिंग व इनव्हॉइस डेस्कशी?"
+            if is_negative:
+                return "काही हरकत नाही! जेव्हा आपल्याला मदत हवी असेल तेव्हा नक्की सांगा. आपला दिवस शुभ जावो!"
+            return "नमस्ते! बिझोरा फ्रंट डेस्कवर आपले स्वागत आहे. मी आपल्याला आमच्या मराठी सप्लायर क्लोजर (मनोहर) किंवा बिलिंग डेस्ककडे हस्तांतरित करू शकते. आपण कोणाशी बोलू इच्छिता?"
 
         # ── Domain 1: Medicare / Mediclaim / Health Insurance ────────────────
         if any(k in prompt_lower for k in ["medicare", "mediclaim", "insurance", "health plan", "policy", "पॉलिसी", "विमा"]):
@@ -153,45 +173,66 @@ class PromptAwareDialogueEngine:
                     "customized quote shortly. Thank you for speaking with Bizora Medicare, have a wonderful day!"
                 )
 
-        # ── Domain 2: Agro / Mandi / APMC Trading ───────────────────────────
-        if any(k in prompt_lower for k in ["apmc", "mandi", "बाजार समिती", "कांदा", "सोयाबीन", "व्यापारी", "कृषी", "કપાસ", "યાર્ડ"]):
+        # ── Domain 2: Agro / Mandi / APMC Trading / Marathi Supplier Closer ─
+        if any(k in prompt_lower for k in ["apmc", "mandi", "बाजार समिती", "कांदा", "बटाटा", "सोयाबीन", "व्यापारी", "कृषी", "closer", "supplier closer", "vegetable", "commodity"]):
+            if is_billing_trigger:
+                return "होय, सौद्याची अधिकृत वजन पावती आणि GST बिल तयार करण्यासाठी मी आपल्याला आमच्या बिलिंग डेस्ककडे जोडत आहे... [AUTO_TRANSFER:member-3]"
+
             if is_marathi:
                 if any(k in last_msg for k in ["कांदा", "kanda", "onion"]):
-                    return "नाशिक आणि लासलगाव बाजार समितीत आज कांद्याला प्रति क्विंटल २,४५० ते २,८०० रुपये सरासरी दर चालू आहे. दर्जेदार मालाला चांगला उठाव आहे. आपल्याला किती टन पुरवठा करायचा आहे?"
+                    return "नाशिक आणि लासलगाव बाजार समितीत आज दर्जेदार कांद्याला प्रति क्विंटल २,४५० ते २,८०० रुपये (₹२४ ते ₹२८ प्रति किलो) दर चालू आहे. दर्जेदार गोल्टी व मोठा कांदा उपलब्ध आहे. आपल्याला किती टन खरेदी करायचा आहे की पुरवठा करायचा आहे?"
+                if any(k in last_msg for k in ["बटाटा", "potato", "batata", "आलू"]):
+                    return "पुणे व मुंबई मार्केटमध्ये उत्तम बटाट्याचा दर ₹१,८०० ते ₹२,००० प्रति क्विंटल (₹१८ ते ₹२० प्रति किलो) चालू आहे. थेट शेतातून ताजी आवक आहे. गाडी कुठे पाठवायची?"
                 if any(k in last_msg for k in ["सोयाबीन", "हळद", "turmeric", "soybean"]):
                     return "लातूर व सांगली बाजारपेठेत सोयाबीनला प्रति क्विंटल ४,६५० रुपये आणि हळदीला प्रति क्विंटल १३,८०० रुपये भाव आहे. आजच सौद्याची गाडी पाठवायची असल्यास सांगा."
-                return "होय, आम्ही आपला सौदा आणि गाडीची नोंद करून घेतली आहे. वजन पावती आणि देयक थेट व्हॉट्सॲपवर पाठवले जाईल."
+                if any(k in last_msg for k in ["टोमॅटो", "tomato"]):
+                    return "नारायणगाव आणि जुन्नर मार्केटमध्ये आज टोमॅटो क्रेटचा भाव ₹६५० ते ₹७५० चालू आहे. माल एक नंबर प्रतवारीचा आहे. किती क्रेट्स हव्या आहेत?"
+                if is_affirmative:
+                    return "फार छान! मी आपल्या सौद्याची नोंद करून घेतली आहे. गाडीचे भाडे आणि वजन पावतीसह बिल पाठवण्यासाठी मी बिलिंग डेस्ककडे ट्रान्सफर करू का?"
+                return "नमस्कार! मी कृषी आणि घाऊक बाजार specialist मनोहर. सांगा, आज कोणत्या मालाचे दर आणि किती क्विंटलचा सौदा करायचा आहे?"
 
             if is_gujarati:
-                return "આજના રાજકોટ અને ઉંઝા માર્કેટ યાર્ડમાં જીરું અને કપાસના ભાવ સ્થિર છે. કપાસ પ્રતિ મણ ₹૧,૫૫૦ થી ₹૧,૭૨૦ ચાલે છે. તમારા ઓર્ડરની વિગતો અમે નોંધી લીધી છે."
+                return "આજના રાજકોટ અને ઉંઝા માર્કેટ યાર્ડમાં જીરું અને કપાસના ભાવ સ્થિર છે. કપાસ પ્રતિ મણ ₹૧,૫૫૦ થી ₹૧,૭૨૦ ચાલે છે. તમારા ઓર્ડરની વિગતો અમે નોંधी લીધી છે."
 
             return "The current APMC auction price for grade-A produce is ₹2,600 per quintal with active wholesale demand. We have recorded your truck dispatch request."
 
-        # ── Domain 3: Hospital / Dental / Clinic Appointment ────────────────
+        # ── Domain 3: Billing & Accounts Desk ────────────────────────────────
+        if any(k in prompt_lower for k in ["billing", "account desk", "invoice", "बिलिंग", "खाते", "gst", "deyak", "debit", "credit"]):
+            if any(k in last_msg for k in ["upi", "qr", "link", "payment", "पेमेंट"]):
+                return "Welcome to Billing. I have generated your digital invoice and sent the instant UPI payment QR code directly to your registered WhatsApp. Let me know once settled!"
+            if is_affirmative:
+                return "Your official GST invoice has been verified and dispatched to your email and WhatsApp. Thank you for doing business with Bizora wholesale network!"
+            return "Welcome to Billing & Accounts. I can send your digital GST invoice via WhatsApp or SMS, and provide UPI QR for instant settlement. How may I assist with your payment today?"
+
+        # ── Domain 4: Hospital / Dental / Clinic Appointment ────────────────
         if any(k in prompt_lower for k in ["doctor", "hospital", "clinic", "dental", "appointment", "दवाखाना"]):
             if is_affirmative or "slot" in last_msg:
-                return "Dr. Sharma has open consultation slots today at 11:30 AM and 4:30 PM. Would you like me to reserve the morning or afternoon appointment for you?"
+                return "Dr. Patil has open consultation slots today at 11:30 AM and 4:30 PM. Would you like me to reserve the morning or afternoon appointment for you?"
+            if any(k in last_msg for k in ["pain", "emergency", "दातदुखी", "रक्त", "severe"]):
+                return "I understand this is urgent. I have flagged your case for priority immediate emergency intake with Dr. Patil. Please visit the clinic right away."
             return "Your appointment has been successfully scheduled. You will receive an SMS and WhatsApp confirmation with directions to the clinic. Please carry your previous prescriptions."
 
-        # ── Domain 4: Hotel & Table Booking ─────────────────────────────────
+        # ── Domain 5: Hotel & Table Booking ─────────────────────────────────
         if any(k in prompt_lower for k in ["hotel", "taj", "restaurant", "booking", "table", "deluxe", "resort"]):
             if is_affirmative or "deluxe" in last_msg:
                 return "We have Deluxe King Rooms available for your requested dates at ₹4,500/night, including complimentary buffet breakfast. Would you like to confirm this reservation?"
             return "Your reservation has been confirmed. A booking voucher with check-in instructions has been dispatched. We look forward to welcoming you!"
 
-        # ── Domain 5: Custom Bullet Points Extracted from System Prompt ─────
-        custom_points = self.extract_custom_points(prompt_text)
-        if len(custom_points) >= 2:
-            idx = min(user_turn - 1, len(custom_points) - 1)
-            if idx >= 0:
-                current_point = custom_points[idx]
-                if idx < len(custom_points) - 1:
-                    next_idx = idx + 1
-                    return f"{current_point}\n\nWould you like me to tell you about the next point ({custom_points[next_idx][:35]}...)?"
-                else:
-                    return f"{current_point}\n\nAll details have been presented. How would you like to proceed?"
+        # ── Domain 6: Natural Conversational Fallback (Never Speak Raw Prompt) ─
+        if is_marathi:
+            if is_affirmative:
+                return "होय, मी समजलो! आपल्या गरजेनुसार मी पुढील प्रक्रिया करत आहे. सांगा, आपल्याला आणखी काय माहिती हवी आहे?"
+            if is_negative:
+                return "काही हरकत नाही! आपल्याला जेव्हा आवश्यकता असेल तेव्हा नक्की सांगा. आपला दिवस शुभ जावो!"
+            return f"आपला संदेश मिळाला: '{last_msg}'. मी आपल्याला कशी मदत करू शकतो सांगा?"
 
-        # ── Domain 6: Natural Conversational Fallback ─────────────────────────
+        if is_hindi:
+            if is_affirmative:
+                return "जी बिल्कुल, मैंने नोट कर लिया है! आगे की प्रक्रिया शुरू की जा रही है। क्या आप कोई अन्य जानकारी चाहते हैं?"
+            if is_negative:
+                return "कोई बात नहीं! जब भी आपको सहायता की आवश्यकता हो, हमें बताएं। आपका दिन शुभ हो!"
+            return f"जी, मैंने आपका संदेश सुन लिया है: '{last_msg}'. बताइए मैं आपकी क्या सहायता कर सकता हूँ?"
+
         if is_affirmative:
             return "Understood and noted! I am actively assisting you according to your requirements. What specific detail or next step would you like to explore?"
         if is_negative:
@@ -457,11 +498,21 @@ class LLMEngine:
 
     # ── Gemini Cloud Implementation ─────────────────────────────────────
 
+    def _normalize_gemini_model(self, model: str | None) -> str:
+        if not model:
+            return "gemini-2.0-flash"
+        m = model.strip()
+        if m.startswith("models/"):
+            m = m[7:]
+        if "2.5" in m or m.lower() in ("gemini", "gemini-flash"):
+            return "gemini-2.0-flash"
+        return m
+
     async def _chat_gemini(
         self,
         messages: list[dict],
         system_prompt: str | None = None,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-2.0-flash",
         api_key: str | None = None,
     ) -> str:
         settings = get_settings()
@@ -469,32 +520,36 @@ class LLMEngine:
         if not key:
             return self._prompt_engine.generate_reply(messages, system_prompt)
 
+        primary_model = self._normalize_gemini_model(model)
+        models_to_try = [primary_model]
+        if primary_model != "gemini-1.5-flash":
+            models_to_try.append("gemini-1.5-flash")
+
         payload = self._build_gemini_payload(messages, system_prompt)
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+        client = await self._get_gemini_client()
 
-        try:
-            client = await self._get_gemini_client()
-            resp = await client.post(url, json=payload)
-            if resp.status_code != 200:
-                logger.error("Gemini API returned %s: %s", resp.status_code, resp.text)
-                return self._prompt_engine.generate_reply(messages, system_prompt)
+        for target_m in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_m}:generateContent?key={key}"
+            try:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts:
+                            return parts[0].get("text", "").strip()
+                logger.warning("Gemini model %s returned status %s: %s", target_m, resp.status_code, resp.text[:120])
+            except Exception as e:
+                logger.warning("Gemini model %s error: %s", target_m, e)
 
-            data = resp.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts:
-                    return parts[0].get("text", "").strip()
-            return self._prompt_engine.generate_reply(messages, system_prompt)
-        except Exception as exc:
-            logger.error("Gemini chat error: %s. Falling back to dialogue engine.", exc, exc_info=True)
-            return self._prompt_engine.generate_reply(messages, system_prompt)
+        return self._prompt_engine.generate_reply(messages, system_prompt)
 
     async def _chat_stream_gemini(
         self,
         messages: list[dict],
         system_prompt: str | None = None,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-2.0-flash",
         api_key: str | None = None,
     ) -> AsyncGenerator[str, None]:
         settings = get_settings()
@@ -505,40 +560,49 @@ class LLMEngine:
                 yield word + " "
             return
 
+        primary_model = self._normalize_gemini_model(model)
+        models_to_try = [primary_model]
+        if primary_model != "gemini-1.5-flash":
+            models_to_try.append("gemini-1.5-flash")
+
         payload = self._build_gemini_payload(messages, system_prompt)
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={key}"
+        client = await self._get_gemini_client()
+        streamed_success = False
 
-        try:
-            client = await self._get_gemini_client()
-            async with client.stream("POST", url, json=payload) as resp:
-                if resp.status_code != 200:
-                    err_text = await resp.aread()
-                    logger.error("Gemini stream returned %s: %s", resp.status_code, err_text.decode(errors="ignore"))
-                    fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
-                    for word in fallback_text.split(" "):
-                        yield word + " "
-                    return
-
-                async for line in resp.aiter_lines():
-                    line = line.strip()
-                    if not line or not line.startswith("data: "):
+        for target_m in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_m}:streamGenerateContent?alt=sse&key={key}"
+            try:
+                async with client.stream("POST", url, json=payload) as resp:
+                    if resp.status_code != 200:
+                        err_text = await resp.aread()
+                        logger.warning("Gemini stream %s returned %s: %s", target_m, resp.status_code, err_text.decode(errors="ignore")[:100])
                         continue
 
-                    json_str = line[6:].strip()
-                    try:
-                        data = json.loads(json_str)
-                    except json.JSONDecodeError:
-                        continue
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line or not line.startswith("data: "):
+                            continue
 
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        for part in parts:
-                            text = part.get("text", "")
-                            if text:
-                                yield text
-        except Exception as exc:
-            logger.error("Gemini stream error: %s. Falling back to dialogue engine.", exc, exc_info=True)
-            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
-            for word in fallback_text.split(" "):
-                yield word + " "
+                        json_str = line[6:].strip()
+                        try:
+                            data = json.loads(json_str)
+                        except json.JSONDecodeError:
+                            continue
+
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            for part in parts:
+                                text = part.get("text", "")
+                                if text:
+                                    streamed_success = True
+                                    yield text
+                    if streamed_success:
+                        return
+            except Exception as exc:
+                logger.warning("Gemini stream %s exception: %s", target_m, exc)
+
+        # Fallback to zero-dependency dialogue engine
+        fallback_text = self._prompt_engine.generate_reply(messages, system_prompt)
+        for word in fallback_text.split(" "):
+            yield word + " "

@@ -9,6 +9,7 @@ export interface UseWebSocketOptions {
   onAudioReceived?: (data: ArrayBuffer) => void;
   onTranscript?: (role: 'user' | 'assistant', text: string, isFinal: boolean) => void;
   onStateChange?: (state: CallState) => void;
+  onAgentTransferred?: (data: { agent_idx: number; agent_name: string; voice: string; transfer_phrase?: string }) => void;
   onError?: (error: string) => void;
   onClose?: () => void;
 }
@@ -17,6 +18,7 @@ export function useWebSocket({
   onAudioReceived,
   onTranscript,
   onStateChange,
+  onAgentTransferred,
   onError,
   onClose,
 }: UseWebSocketOptions = {}) {
@@ -61,6 +63,10 @@ export function useWebSocket({
             } else if (data.type === 'state') {
               if (onStateChange) {
                 onStateChange(data.state as CallState);
+              }
+            } else if (data.type === 'agent_transferred' || data.type === 'transfer') {
+              if (onAgentTransferred) {
+                onAgentTransferred(data);
               }
             } else if (data.type === 'error') {
               if (onError) {

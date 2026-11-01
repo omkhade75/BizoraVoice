@@ -266,7 +266,7 @@ export const DEFAULT_SEED_AGENTS: Agent[] = [
     id: 'agent_maya_medicare',
     name: 'maya',
     language: 'en',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     voice: 'hi-IN-MadhurNeural',
     system_prompt: 'you are medicare plans caller so you will get response yes i am free you should tell about our mediclaim plans one by one .',
     greeting_message: 'hello good afternoon . are you free to talk is yes please let me know.',

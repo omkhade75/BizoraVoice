@@ -234,7 +234,7 @@ async def init_db():
                         system_prompt="you are medicare plans caller so you will get response yes i am free you should tell about our mediclaim plans one by one .",
                         greeting_message="hello good afternoon . are you free to talk is yes please let me know.",
                         voice="hi-IN-MadhurNeural",
-                        model="gemini-2.5-flash",
+                        model="gemini-2.0-flash",
                         language="en",
                         provider="google_gemini",
                         is_public=True,

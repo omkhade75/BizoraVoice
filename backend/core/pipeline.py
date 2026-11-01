@@ -5,6 +5,7 @@ Wired as: VAD -> STT -> LLM -> TTS -> Audio Output
 
 import asyncio
 import logging
+import re
 from typing import AsyncGenerator, Optional, Callable, Awaitable
 
 from core.events import CallState
@@ -29,6 +30,7 @@ class VoicePipeline:
         vad_engine: Optional[VADEngine] = None,
         on_transcript: Optional[Callable[[str, str, bool], Awaitable[None]]] = None,
         on_state_change: Optional[Callable[[CallState], Awaitable[None]]] = None,
+        on_auto_transfer: Optional[Callable[[str], Awaitable[None]]] = None,
     ):
         self.session = session
         self.stt = stt_engine
@@ -37,6 +39,7 @@ class VoicePipeline:
         self.vad = vad_engine or VADEngine()
         self.on_transcript = on_transcript
         self.on_state_change = on_state_change
+        self.on_auto_transfer = on_auto_transfer
         self._is_processing_response = False
         self._current_gen_task: Optional[asyncio.Task] = None
 
@@ -160,7 +163,7 @@ class VoicePipeline:
                         for sentence in sentences[:-1]:
                             if self.session.interrupted:
                                 break
-                            clean_sentence = sentence.strip()
+                            clean_sentence = re.sub(r"\[AUTO_TRANSFER:[^\]]+\]", "", sentence).strip()
                             if clean_sentence:
                                 await self.set_state(CallState.SPEAKING)
                                 loop = asyncio.get_running_loop()
@@ -172,7 +175,7 @@ class VoicePipeline:
                         sentence_buffer = sentences[-1]
 
             # Synthesize whatever remains in sentence_buffer
-            remainder = sentence_buffer.strip()
+            remainder = re.sub(r"\[AUTO_TRANSFER:[^\]]+\]", "", sentence_buffer).strip()
             if remainder and not self.session.interrupted:
                 await self.set_state(CallState.SPEAKING)
                 loop = asyncio.get_running_loop()
@@ -184,11 +187,17 @@ class VoicePipeline:
 
             # Save full assistant response to session history
             complete_text = "".join(assistant_reply_full).strip()
-            if complete_text:
-                logger.info(f"Assistant complete response: '{complete_text}'")
-                self.session.add_message("assistant", complete_text)
+            clean_display_text = re.sub(r"\[AUTO_TRANSFER:[^\]]+\]", "", complete_text).strip()
+            if clean_display_text:
+                logger.info(f"Assistant complete response: '{clean_display_text}'")
+                self.session.add_message("assistant", clean_display_text)
                 if self.on_transcript:
-                    await self.on_transcript("assistant", complete_text, True)
+                    await self.on_transcript("assistant", clean_display_text, True)
+
+            # Check if reply triggered an automatic squad handoff
+            transfer_match = re.search(r"\[AUTO_TRANSFER:(?P<target>[^\]]+)\]", complete_text)
+            if transfer_match and self.on_auto_transfer:
+                await self.on_auto_transfer(transfer_match.group("target"))
 
         except asyncio.CancelledError:
             logger.info("LLM/TTS generation cancelled.")

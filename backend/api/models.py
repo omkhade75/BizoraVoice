@@ -341,6 +341,8 @@ class StartCallRequest(BaseModel):
     greeting_message: Optional[str] = None
     client_type: Optional[str] = "web_dashboard"
     gemini_api_key: Optional[str] = None
+    squad_id: Optional[str] = None
+    squad_members: Optional[List[Dict[str, Any]]] = None
 
 
 class StartCallResponse(BaseModel):

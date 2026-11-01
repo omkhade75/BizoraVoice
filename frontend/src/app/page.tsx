@@ -157,7 +157,7 @@ const client = new BizoraVoiceClient({
 // Create autonomous voice assistant with Marathi + Hindi support
 const assistant = await client.assistants.create({
   name: 'Hotel Concierge',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.0-flash',
   voiceId: 'neural-hindi-female-1',
   systemPrompt: 'You are a polite hotel concierge answering incoming guest calls.',
   maxDurationSeconds: 600,

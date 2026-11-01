@@ -170,9 +170,8 @@ async def list_models():
                 "description": "Ultra-fast sub-400ms cloud inference running entirely on Google servers. Zero CPU/GPU usage on your machine.",
                 "is_cloud": True,
                 "models": [
-                    {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "recommended": True, "speed": "Sub-300ms", "context": "1M tokens"},
+                    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "recommended": True, "speed": "Sub-300ms", "context": "1M tokens"},
                     {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "recommended": False, "speed": "Sub-400ms", "context": "1M tokens"},
-                    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "recommended": False, "speed": "Sub-350ms", "context": "1M tokens"},
                 ],
             },
             {
@@ -427,11 +426,11 @@ async def start_call_session(
     # Resolve Model & Inference Engine (Gemini Cloud vs Local Ollama)
     inference_mode = (req.inference_mode or "gemini").lower().strip()
     if inference_mode == "gemini":
-        model = req.model if (req.model and "gemini" in req.model.lower()) else "gemini-2.5-flash"
+        model = req.model if (req.model and "gemini" in req.model.lower() and "2.5" not in req.model) else "gemini-2.0-flash"
     elif inference_mode == "ollama":
         model = req.model if (req.model and "gemini" not in req.model.lower()) else (agent.model if agent else settings.ollama_model)
     else:
-        model = req.model or (agent.model if agent else "gemini-2.5-flash")
+        model = req.model or (agent.model if agent else "gemini-2.0-flash")
 
     agent_name = agent.name if agent else "Bizora Voice Assistant"
     greeting = req.greeting_message or (agent.greeting_message if agent else None)
@@ -456,6 +455,8 @@ async def start_call_session(
         model=model,
         greeting_message=greeting,
         gemini_api_key=gemini_key,
+        squad_id=req.squad_id,
+        squad_members=req.squad_members,
     )
 
     # Persist initial Call record in database

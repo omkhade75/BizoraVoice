@@ -5,6 +5,7 @@ WebSocket endpoint for real-time bidirectional audio streaming in Bizora Voice.
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -69,6 +70,49 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
             "state": state.value,
         })
 
+    async def on_auto_transfer_callback(target_ref: str):
+        if not session.squad_members:
+            return
+        target_idx = None
+        for idx, m in enumerate(session.squad_members):
+            if m.get("id") == target_ref or f"member-{idx+1}" == target_ref or str(idx) == target_ref:
+                target_idx = idx
+                break
+        if target_idx is None:
+            m_match = re.search(r"\d+", target_ref)
+            if m_match:
+                n = int(m_match.group(0)) - 1
+                if 0 <= n < len(session.squad_members):
+                    target_idx = n
+
+        if target_idx is not None and target_idx != session.current_member_idx:
+            target_agent = session.squad_members[target_idx]
+            session.current_member_idx = target_idx
+            session.voice = target_agent.get("voice", session.voice)
+            session.system_prompt = target_agent.get("systemPrompt", session.system_prompt)
+            logger.info(f"Auto-Handoff: Switched squad to step {target_idx + 1}: {target_agent.get('name')}")
+
+            await send_json_safe({
+                "type": "agent_transferred",
+                "agent_idx": target_idx,
+                "agent_name": target_agent.get("name"),
+                "voice": session.voice,
+                "transfer_phrase": target_agent.get("transferPhrase", ""),
+            })
+
+            # Play new agent's greeting message
+            greeting = target_agent.get("greetingMessage")
+            if greeting:
+                session.add_message("assistant", greeting)
+                await on_transcript_callback("assistant", greeting, True)
+                try:
+                    loop = asyncio.get_running_loop()
+                    g_audio = await loop.run_in_executor(None, tts_engine.synthesize, greeting, session.voice)
+                    if g_audio:
+                        await websocket.send_bytes(g_audio)
+                except Exception as ex:
+                    logger.error(f"Error speaking new agent greeting: {ex}")
+
     pipeline = VoicePipeline(
         session=session,
         stt_engine=stt_engine,
@@ -77,6 +121,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         vad_engine=vad_engine,
         on_transcript=on_transcript_callback,
         on_state_change=on_state_callback,
+        on_auto_transfer=on_auto_transfer_callback,
     )
 
     # Initial ready notification
@@ -137,23 +182,100 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                         user_text = data.get("text", "").strip()
                         if user_text:
                             logger.info(f"Received user utterance from client: '{user_text}'")
-                            async for output_chunk in pipeline.handle_user_text(user_text):
-                                try:
-                                    await websocket.send_bytes(output_chunk)
-                                except Exception as e:
-                                    logger.error(f"Error sending audio reply chunk: {e}")
-                                    break
+
+                            # Fast-path squad direct handoff check
+                            did_direct_transfer = False
+                            if session.squad_members and len(session.squad_members) > 1:
+                                u_lower = user_text.lower()
+                                cur_idx = session.current_member_idx
+                                t_idx = None
+                                t_phrase = ""
+
+                                if cur_idx == 0:
+                                    if any(w in u_lower for w in ["मराठी", "सप्लायर", "supplier", "कांदा", "बटाटा", "closer", "व्यापारी", "बाजार", "मंडी", "दर", "खरेदी", "माल", "मनोहर"]):
+                                        t_idx = 1
+                                        t_phrase = "नक्कीच! मी आपल्याला त्वरित आमचे कृषी व घाऊक बाजार तज्ज्ञ मनोहर यांच्याकडे जोडत आहे."
+                                    elif any(w in u_lower for w in ["billing", "bill", "बिल", "खाते", "payment", "पेमेंट", "invoice", "पावती"]):
+                                        t_idx = 2 if len(session.squad_members) > 2 else 1
+                                        t_phrase = "अवश्य! मी आपल्याला त्वरित आमच्या बिलिंग आणि अकाउंट्स डेस्ककडे ट्रान्सफर करत आहे."
+                                elif cur_idx == 1:
+                                    if any(w in u_lower for w in ["billing", "bill", "बिल", "खाते", "payment", "पेमेंट", "invoice", "पावती", "हिशोब"]):
+                                        t_idx = 2 if len(session.squad_members) > 2 else None
+                                        t_phrase = "होय, सौद्याची अधिकृत वजन पावती आणि GST देयक तयार करण्यासाठी मी आपल्याला बिलिंग डेस्ककडे जोडत आहे."
+
+                                if t_idx is not None and t_idx != cur_idx and t_idx < len(session.squad_members):
+                                    did_direct_transfer = True
+                                    target_agent = session.squad_members[t_idx]
+                                    session.add_message("user", user_text)
+                                    await on_transcript_callback("user", user_text, True)
+
+                                    # Speak transfer phrase in current receptionist voice
+                                    await pipeline.set_state(CallState.SPEAKING)
+                                    await on_transcript_callback("assistant", f"🔄 [Warm Transfer to {target_agent.get('name')}]: {t_phrase}", True)
+                                    try:
+                                        loop = asyncio.get_running_loop()
+                                        t_audio = await loop.run_in_executor(None, tts_engine.synthesize, t_phrase, session.voice)
+                                        if t_audio:
+                                            await websocket.send_bytes(t_audio)
+                                    except Exception as ex:
+                                        logger.error(f"Error speaking transfer phrase: {ex}")
+
+                                    # Switch active agent in session
+                                    session.current_member_idx = t_idx
+                                    session.voice = target_agent.get("voice", session.voice)
+                                    session.system_prompt = target_agent.get("systemPrompt", session.system_prompt)
+
+                                    await send_json_safe({
+                                        "type": "agent_transferred",
+                                        "agent_idx": t_idx,
+                                        "agent_name": target_agent.get("name"),
+                                        "voice": session.voice,
+                                        "transfer_phrase": t_phrase,
+                                    })
+
+                                    # Speak new specialist's greeting in new voice
+                                    greeting = target_agent.get("greetingMessage") or "नमस्कार! मी कृषी आणि घाऊक बाजार specialist मनोहर. सांगा, आज कोणत्या मालाचा सौदा करायचा आहे?"
+                                    session.add_message("assistant", greeting)
+                                    await on_transcript_callback("assistant", greeting, True)
+                                    try:
+                                        loop = asyncio.get_running_loop()
+                                        g_audio = await loop.run_in_executor(None, tts_engine.synthesize, greeting, session.voice)
+                                        if g_audio:
+                                            await websocket.send_bytes(g_audio)
+                                    except Exception as ex:
+                                        logger.error(f"Error speaking specialist greeting: {ex}")
+
+                                    await pipeline.set_state(CallState.LISTENING)
+
+                            if not did_direct_transfer:
+                                async for output_chunk in pipeline.handle_user_text(user_text):
+                                    try:
+                                        await websocket.send_bytes(output_chunk)
+                                    except Exception as e:
+                                        logger.error(f"Error sending audio reply chunk: {e}")
+                                        break
 
                     elif msg_type in ("switch_agent", "transfer", "handoff"):
                         agent_name = data.get("agent_name", "Specialist Agent")
                         new_voice = data.get("voice")
                         new_prompt = data.get("system_prompt")
                         transfer_phrase = data.get("transfer_phrase", f"Connecting you with {agent_name}.")
+                        target_idx = data.get("agent_idx", None)
+                        if target_idx is not None and isinstance(target_idx, int):
+                            session.current_member_idx = target_idx
                         if new_voice:
                             session.voice = new_voice
                         if new_prompt:
                             session.system_prompt = new_prompt
                         logger.info(f"Squad live handoff: Switched active agent to '{agent_name}', voice '{new_voice}'")
+
+                        await send_json_safe({
+                            "type": "agent_transferred",
+                            "agent_idx": session.current_member_idx,
+                            "agent_name": agent_name,
+                            "voice": session.voice,
+                            "transfer_phrase": transfer_phrase,
+                        })
 
                         await pipeline.set_state(CallState.SPEAKING)
                         session.add_message("assistant", transfer_phrase)

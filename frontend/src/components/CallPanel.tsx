@@ -41,6 +41,12 @@ export function CallPanel() {
   const queryAgentId = searchParams?.get('agent') || searchParams?.get('agent_id');
   const querySquadId = searchParams?.get('squad') || searchParams?.get('squad_id');
 
+  // Squad Multi-Agent Simulation state
+  const [activeSquad, setActiveSquad] = useState<Squad | null>(null);
+  const [currentMemberIdx, setCurrentMemberIdx] = useState<number>(0);
+  const [transferring, setTransferring] = useState<boolean>(false);
+  const [transferBanner, setTransferBanner] = useState<string | null>(null);
+
   const {
     isInCall,
     callState,
@@ -54,7 +60,16 @@ export function CallPanel() {
     endCall,
     toggleMute,
     transferAgent,
-  } = useCall();
+  } = useCall({
+    onAgentTransferred: (data) => {
+      console.log('Server executed autonomous squad transfer:', data);
+      if (typeof data.agent_idx === 'number') {
+        setCurrentMemberIdx(data.agent_idx);
+        setTransferBanner(`Transferred to ${data.agent_name || 'Specialist'}`);
+        setTimeout(() => setTransferBanner(null), 4000);
+      }
+    },
+  });
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
@@ -72,11 +87,6 @@ export function CallPanel() {
     message: '',
     models: [],
   });
-
-  // Squad Multi-Agent Simulation state
-  const [activeSquad, setActiveSquad] = useState<Squad | null>(null);
-  const [currentMemberIdx, setCurrentMemberIdx] = useState<number>(0);
-  const [transferring, setTransferring] = useState<boolean>(false);
 
   // Load preferences, agents and check for squad parameter
   useEffect(() => {
@@ -194,7 +204,7 @@ export function CallPanel() {
   };
 
   const handleStartCall = () => {
-    const effectiveModel = inferenceMode === 'gemini' ? 'gemini-2.5-flash' : 'qwen3.5:4b';
+    const effectiveModel = inferenceMode === 'gemini' ? 'gemini-2.0-flash' : 'qwen3.5:4b';
 
     if (activeSquad && activeMember) {
       // Start call with Squad Lead Agent
@@ -210,7 +220,9 @@ export function CallPanel() {
         activeMember.voice,
         activeMember.greetingMessage,
         effectiveModel,
-        inferenceMode
+        inferenceMode,
+        activeSquad.id,
+        activeSquad.members
       );
     } else {
       // Standard Single Agent Call
@@ -237,11 +249,13 @@ export function CallPanel() {
     setCurrentMemberIdx(targetIdx);
 
     const cue = current.transferPhrase || `Connecting you directly with ${target.name}.`;
-    transferAgent(target.name, target.voice, target.systemPrompt, cue);
+    transferAgent(target.name, target.voice, target.systemPrompt, cue, targetIdx);
 
+    setTransferBanner(`Transferred to ${target.name}`);
     setTimeout(() => {
       setTransferring(false);
-    }, 1800);
+      setTransferBanner(null);
+    }, 2500);
   };
 
   // Map callState to VoiceCoreState
@@ -431,6 +445,12 @@ export function CallPanel() {
             {/* Top Status Strip */}
             <div className="w-full flex items-center justify-between">
               <StatusBadge state={callState} isMuted={isMuted} />
+              {transferBanner && (
+                <span className="font-mono text-xs font-semibold text-amber-400 bg-amber-500/15 px-3 py-1 rounded-full border border-amber-500/30 flex items-center gap-1.5 animate-pulse shadow-sm">
+                  <PhoneForwarded className="w-3.5 h-3.5 text-amber-400" />
+                  {transferBanner}
+                </span>
+              )}
               {isInCall && (
                 <span className="font-mono text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-3.5 py-1 rounded-full border border-emerald-500/25 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -467,7 +487,7 @@ export function CallPanel() {
                 <p className="text-xs text-text-secondary leading-relaxed">
                   {isInCall
                     ? activeSquad
-                      ? `Connected to Squad Step ${currentMemberIdx + 1} of ${activeSquad.members.length}. ${inferenceMode === 'gemini' ? 'Gemini 2.5 Flash' : 'Local Ollama'} Active.`
+                      ? `Connected to Squad Step ${currentMemberIdx + 1} of ${activeSquad.members.length}. ${inferenceMode === 'gemini' ? 'Gemini 2.0 Flash' : 'Local Ollama'} Active.`
                       : `Real-time full-duplex conversational audio with sub-329ms latency via ${inferenceMode === 'gemini' ? 'Gemini Cloud' : 'Local Ollama'}.`
                     : activeSquad && activeMember
                     ? `Lead Triage: ${activeMember.language} • ${activeMember.voice.split('-')[2] || activeMember.voice} voice`

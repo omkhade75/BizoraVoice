@@ -23,9 +23,8 @@ const VOICES = [
 ];
 
 const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Cloud Recommended)', latency: 'Sub-300ms', desc: 'Multilingual Marathi, Hindi, Gujarati & English' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Cloud Recommended)', latency: 'Sub-300ms', desc: 'Multilingual Marathi, Hindi, Gujarati & English' },
   { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', latency: 'Sub-400ms', desc: 'High accuracy, balanced reasoning' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', latency: 'Sub-350ms', desc: 'Next-generation cloud reasoning' },
 ];
 
 const OLLAMA_MODELS = [
@@ -44,7 +43,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
 
   // LLM Provider: 'gemini' (Cloud) or 'ollama' (Local)
   const [llmProvider, setLlmProvider] = useState<'gemini' | 'ollama'>('gemini');
-  const [model, setModel] = useState('gemini-2.5-flash');
+  const [model, setModel] = useState('gemini-2.0-flash');
 
   const [temperature, setTemperature] = useState(0.7);
   const [maxDuration, setMaxDuration] = useState(600);
@@ -73,7 +72,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
       setLanguage('mr');
       setVoice('mr-IN-AarohiNeural');
       setLlmProvider('gemini');
-      setModel('gemini-2.5-flash');
+      setModel('gemini-2.0-flash');
       setTemperature(0.7);
       setMaxDuration(600);
     }
@@ -92,7 +91,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
   const handleProviderChange = (provider: 'gemini' | 'ollama') => {
     setLlmProvider(provider);
     if (provider === 'gemini') {
-      setModel('gemini-2.5-flash');
+      setModel('gemini-2.0-flash');
     } else {
       setModel('qwen3.5:4b');
     }
