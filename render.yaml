@@ -29,14 +29,32 @@ services:
         value: sb_publishable_rbGRKU6uSNzFJBZNBxPnbQ_QjdNbWVZ
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
       - key: GROQ_API_KEY
         sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: OPENAI_API_KEY
         sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: OPENROUTER_MODEL
+        value: meta-llama/llama-3.1-8b-instruct:free
       - key: OLLAMA_BASE_URL
         value: https://bizora-om-voice.loca.lt
+      - key: OLLAMA_MODEL
+        value: qwen3.5:4b
+      - key: TTS_VOICE
+        value: mr-IN-AarohiNeural
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
 
   # ── Vaani Voice Static Frontend (Instant Global CDN, Zero Cold Starts) ───
   - type: static
