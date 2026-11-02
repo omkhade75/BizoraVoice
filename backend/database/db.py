@@ -58,7 +58,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db():
     """Initialize database tables, run incremental column migrations, and seed default records."""
     async with engine.begin() as conn:
-        # Safe column migrations for PostgreSQL
+        # Safe column migrations for PostgreSQL and SQLite
         if "postgresql" in settings.database_url:
             stmts = [
                 "ALTER TABLE agents ADD COLUMN IF NOT EXISTS provider VARCHAR(50) DEFAULT 'ollama';",
@@ -76,6 +76,28 @@ async def init_db():
                 "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tts_ms INTEGER DEFAULT 80;",
             ]
             for s in stmts:
+                try:
+                    await conn.execute(text(s))
+                except Exception:
+                    pass
+        else:
+            # SQLite safe incremental migrations
+            sqlite_stmts = [
+                "ALTER TABLE agents ADD COLUMN provider VARCHAR(50) DEFAULT 'ollama';",
+                "ALTER TABLE agents ADD COLUMN version VARCHAR(20) DEFAULT 'v1.0.0';",
+                "ALTER TABLE agents ADD COLUMN is_published BOOLEAN DEFAULT 0;",
+                "ALTER TABLE agents ADD COLUMN silence_timeout_ms INTEGER DEFAULT 2000;",
+                "ALTER TABLE agents ADD COLUMN tools_config TEXT DEFAULT '[]';",
+                "ALTER TABLE agents ADD COLUMN knowledge_base_id VARCHAR(36);",
+                "ALTER TABLE phone_numbers ADD COLUMN account_sid VARCHAR(100);",
+                "ALTER TABLE phone_numbers ADD COLUMN encrypted_auth_token TEXT;",
+                "ALTER TABLE phone_numbers ADD COLUMN country_code VARCHAR(10) DEFAULT '+1';",
+                "ALTER TABLE phone_numbers ADD COLUMN sms_enabled BOOLEAN DEFAULT 0;",
+                "ALTER TABLE messages ADD COLUMN stt_ms INTEGER DEFAULT 120;",
+                "ALTER TABLE messages ADD COLUMN llm_ms INTEGER DEFAULT 180;",
+                "ALTER TABLE messages ADD COLUMN tts_ms INTEGER DEFAULT 80;",
+            ]
+            for s in sqlite_stmts:
                 try:
                     await conn.execute(text(s))
                 except Exception:

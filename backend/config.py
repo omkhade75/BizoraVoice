@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash"
     gemini_timeout: int = 60
 
+    # ── Groq Cloud LLM (Ultra-Fast Free Tier - 300+ tok/s) ──────────────
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_timeout: int = 30
+
+    # ── OpenRouter Free Tier Models ─────────────────────────────────────
+    openrouter_api_key: str = ""
+    openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
+    openrouter_timeout: int = 30
+
     # ── Ollama Local LLM ────────────────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"

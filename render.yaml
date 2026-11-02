@@ -29,6 +29,12 @@ services:
         value: sb_publishable_rbGRKU6uSNzFJBZNBxPnbQ_QjdNbWVZ
       - key: GEMINI_API_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OLLAMA_BASE_URL
+        value: https://bizora-om-voice.loca.lt
 
   # ── Vaani Voice Static Frontend (Instant Global CDN, Zero Cold Starts) ───
   - type: static
