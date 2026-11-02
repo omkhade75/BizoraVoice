@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash"
     gemini_timeout: int = 60
 
+    # ── OpenAI / ChatGPT LLM ───────────────────────────────────────────
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_timeout: int = 30
+
     # ── Groq Cloud LLM (Ultra-Fast Free Tier - 300+ tok/s) ──────────────
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"

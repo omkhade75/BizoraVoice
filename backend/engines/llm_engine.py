@@ -337,6 +337,9 @@ class LLMEngine:
         self._gemini_default_model = settings.gemini_model
         self._gemini_timeout = settings.gemini_timeout
 
+        self._openai_api_key = getattr(settings, "openai_api_key", "") or os.environ.get("OPENAI_API_KEY", "")
+        self._openai_default_model = getattr(settings, "openai_model", "gpt-4o-mini")
+
         self._groq_api_key = getattr(settings, "groq_api_key", "") or os.environ.get("GROQ_API_KEY", "")
         self._groq_default_model = getattr(settings, "groq_model", "llama-3.3-70b-versatile")
 
@@ -346,6 +349,7 @@ class LLMEngine:
         self._ollama_client: httpx.AsyncClient | None = None
         self._gemini_client: httpx.AsyncClient | None = None
         self._groq_client: httpx.AsyncClient | None = None
+        self._openai_client: httpx.AsyncClient | None = None
         self._openrouter_client: httpx.AsyncClient | None = None
         self._prompt_engine = PromptAwareDialogueEngine()
 
@@ -358,7 +362,7 @@ class LLMEngine:
                 base_url=self._ollama_base_url,
                 headers={"Bypass-Tunnel-Reminder": "true", "User-Agent": "BizoraVoice/1.0"},
                 timeout=httpx.Timeout(
-                    connect=3.5,
+                    connect=1.8,
                     read=self._ollama_timeout,
                     write=5.0,
                     pool=5.0,
@@ -393,6 +397,20 @@ class LLMEngine:
             )
         return self._groq_client
 
+    async def _get_openai_client(self) -> httpx.AsyncClient:
+        """Return (or create) the shared OpenAI async HTTP client."""
+        if self._openai_client is None or self._openai_client.is_closed:
+            self._openai_client = httpx.AsyncClient(
+                base_url="https://api.openai.com/v1",
+                timeout=httpx.Timeout(
+                    connect=5.0,
+                    read=30.0,
+                    write=5.0,
+                    pool=5.0,
+                ),
+            )
+        return self._openai_client
+
     async def _get_openrouter_client(self) -> httpx.AsyncClient:
         """Return (or create) the shared OpenRouter async HTTP client."""
         if self._openrouter_client is None or self._openrouter_client.is_closed:
@@ -418,6 +436,9 @@ class LLMEngine:
         if self._groq_client and not self._groq_client.is_closed:
             await self._groq_client.aclose()
             self._groq_client = None
+        if self._openai_client and not self._openai_client.is_closed:
+            await self._openai_client.aclose()
+            self._openai_client = None
         if self._openrouter_client and not self._openrouter_client.is_closed:
             await self._openrouter_client.aclose()
             self._openrouter_client = None
@@ -437,6 +458,13 @@ class LLMEngine:
             return False
         m = model.lower().strip()
         return any(k in m for k in ["llama", "mixtral", "groq"]) and not ("ollama" in m or "qwen" in m)
+
+    def is_openai_model(self, model: Optional[str]) -> bool:
+        """Check if target model is an OpenAI / ChatGPT model."""
+        if not model:
+            return False
+        m = model.lower().strip()
+        return "gpt-" in m or "chatgpt" in m or "openai" in m
 
     def is_openrouter_model(self, model: Optional[str]) -> bool:
         """Check if target model is an OpenRouter model."""
@@ -509,6 +537,13 @@ class LLMEngine:
         return payload
 
     # ── Unified Chat with Multi-Model Cascading Failover ────────────────
+    # User-Specified Priority Hierarchy:
+    # 1. Ollama (Local/Tunnel on Laptop) -> If offline/not running ->
+    # 2. Google Gemini Flash (2.0/1.5) -> If credits/quota over ->
+    # 3. Groq Cloud LPU (Llama 3.3 70B Ultra-Fast) -> If rate-limited ->
+    # 4. OpenAI ChatGPT (gpt-4o-mini) -> If credits over ->
+    # 5. OpenRouter Free Models (Llama 3.1 8B, Mistral 7B) -> If fails ->
+    # 6. Dialogue Engine Safety Net (Guaranteed Zero Dropped Calls)
 
     async def chat(
         self,
@@ -518,72 +553,67 @@ class LLMEngine:
         api_key: str | None = None,
         voice: str | None = None,
     ) -> str:
-        """Send chat request with automatic multi-model failover."""
+        """Send chat request with priority cascading failover."""
         settings = get_settings()
-        gemini_key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        groq_key = settings.groq_api_key or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
-        openrouter_key = settings.openrouter_api_key or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        gemini_key = api_key or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        groq_key = getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        openai_key = getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        openrouter_key = getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
 
-        target_model = model or (self._gemini_default_model if gemini_key else (self._groq_default_model if groq_key else self._ollama_model))
+        # ── 1. Priority Tier: Ollama (Laptop / Tunnel) ──────────────────────
+        try:
+            logger.info("Tier 1: Checking Ollama at %s...", self._ollama_base_url)
+            ollama_target = model if (model and ("qwen" in model.lower() or "ollama" in model.lower())) else self._ollama_model
+            return await self._chat_ollama(messages, system_prompt, ollama_target, api_key=gemini_key, voice=voice)
+        except Exception as e:
+            logger.info("Tier 1 (Ollama) server not running or unreachable (%s). Shifting to Tier 2: Google Gemini...", e)
 
-        # 1. Primary Model Attempt
-        if self.is_gemini_model(target_model):
-            if gemini_key:
-                try:
-                    return await self._chat_gemini(messages, system_prompt, target_model, api_key=gemini_key, voice=voice)
-                except Exception as e:
-                    logger.warning("Primary Gemini chat failed (%s). Shifting to next model...", e)
-        elif self.is_groq_model(target_model):
-            if groq_key:
-                try:
-                    return await self._chat_groq(messages, system_prompt, target_model, api_key=groq_key, voice=voice)
-                except Exception as e:
-                    logger.warning("Primary Groq chat failed (%s). Shifting to next model...", e)
-        elif self.is_openrouter_model(target_model):
-            if openrouter_key:
-                try:
-                    return await self._chat_openrouter(messages, system_prompt, target_model, api_key=openrouter_key, voice=voice)
-                except Exception as e:
-                    logger.warning("Primary OpenRouter chat failed (%s). Shifting to next model...", e)
+        # ── 2. Priority Tier: Google Gemini Cloud ───────────────────────────
+        if gemini_key:
+            try:
+                logger.info("Tier 2: Requesting Google Gemini Flash...")
+                gemini_target = model if self.is_gemini_model(model) else self._gemini_default_model
+                return await self._chat_gemini(messages, system_prompt, gemini_target, api_key=gemini_key, voice=voice)
+            except Exception as e:
+                logger.warning("Tier 2 (Gemini) quota/credit over or failed (%s). Shifting to Tier 3: Groq Cloud...", e)
         else:
-            try:
-                return await self._chat_ollama(messages, system_prompt, target_model, api_key=gemini_key, voice=voice)
-            except Exception as e:
-                logger.warning("Primary Ollama chat failed (%s). Shifting to next model...", e)
+            logger.info("Tier 2: No GEMINI_API_KEY set. Shifting to Tier 3: Groq Cloud...")
 
-        # 2. Failover: Google Gemini
-        if gemini_key and not self.is_gemini_model(target_model):
+        # ── 3. Priority Tier: Groq Cloud (Ultra-Fast 300+ tok/s) ────────────
+        if groq_key:
             try:
-                logger.info("Failing over to Google Gemini Flash...")
-                return await self._chat_gemini(messages, system_prompt, self._gemini_default_model, api_key=gemini_key, voice=voice)
+                logger.info("Tier 3: Requesting Groq Cloud LPU...")
+                groq_target = model if self.is_groq_model(model) else self._groq_default_model
+                return await self._chat_groq(messages, system_prompt, groq_target, api_key=groq_key, voice=voice)
             except Exception as e:
-                logger.warning("Gemini failover failed: %s", e)
+                logger.warning("Tier 3 (Groq) rate-limited or failed (%s). Shifting to Tier 4: OpenAI ChatGPT...", e)
+        else:
+            logger.info("Tier 3: No GROQ_API_KEY set. Shifting to Tier 4: OpenAI ChatGPT...")
 
-        # 3. Failover: Groq Cloud (Ultra-Fast Free Llama 3.3 70B)
-        if groq_key and not self.is_groq_model(target_model):
+        # ── 4. Priority Tier: OpenAI ChatGPT (gpt-4o-mini) ──────────────────
+        if openai_key:
             try:
-                logger.info("Failing over to Groq Cloud...")
-                return await self._chat_groq(messages, system_prompt, self._groq_default_model, api_key=groq_key, voice=voice)
+                logger.info("Tier 4: Requesting OpenAI ChatGPT...")
+                openai_target = model if self.is_openai_model(model) else self._openai_default_model
+                return await self._chat_openai(messages, system_prompt, openai_target, api_key=openai_key, voice=voice)
             except Exception as e:
-                logger.warning("Groq failover failed: %s", e)
+                logger.warning("Tier 4 (OpenAI) credit over or failed (%s). Shifting to Tier 5: OpenRouter...", e)
+        else:
+            logger.info("Tier 4: No OPENAI_API_KEY set. Shifting to Tier 5: OpenRouter...")
 
-        # 4. Failover: OpenRouter Free Models
-        if openrouter_key and not self.is_openrouter_model(target_model):
+        # ── 5. Priority Tier: OpenRouter Free Models ────────────────────────
+        if openrouter_key:
             try:
-                logger.info("Failing over to OpenRouter...")
-                return await self._chat_openrouter(messages, system_prompt, self._openrouter_default_model, api_key=openrouter_key, voice=voice)
+                logger.info("Tier 5: Requesting OpenRouter Free Models...")
+                or_target = model if self.is_openrouter_model(model) else self._openrouter_default_model
+                return await self._chat_openrouter(messages, system_prompt, or_target, api_key=openrouter_key, voice=voice)
             except Exception as e:
-                logger.warning("OpenRouter failover failed: %s", e)
+                logger.warning("Tier 5 (OpenRouter) failed (%s). Engaging Tier 6 Safety Net...", e)
+        else:
+            logger.info("Tier 5: No OPENROUTER_API_KEY set. Engaging Tier 6 Safety Net...")
 
-        # 5. Failover: Sovereign Local / Remote Ollama
-        if not (target_model and ("qwen" in target_model.lower() or "ollama" in target_model.lower())):
-            try:
-                logger.info("Failing over to Ollama (%s)...", self._ollama_base_url)
-                return await self._chat_ollama(messages, system_prompt, self._ollama_model, api_key=gemini_key, voice=voice)
-            except Exception as e:
-                logger.warning("Ollama failover failed: %s", e)
-
-        # 6. Final Deterministic Safety Net (Zero-Dependency Dialogue Engine)
+        # ── 6. Safety Net: Deterministic Dialogue Engine ────────────────────
+        logger.info("Tier 6: Engaging deterministic PromptAwareDialogueEngine safety net.")
         return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
 
     async def chat_stream(
@@ -594,106 +624,81 @@ class LLMEngine:
         api_key: str | None = None,
         voice: str | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream chat tokens with automatic multi-model failover."""
+        """Stream chat tokens with priority cascading failover."""
         settings = get_settings()
-        gemini_key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        groq_key = settings.groq_api_key or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
-        openrouter_key = settings.openrouter_api_key or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
-
-        target_model = model or (self._gemini_default_model if gemini_key else (self._groq_default_model if groq_key else self._ollama_model))
+        gemini_key = api_key or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        groq_key = getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        openai_key = getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        openrouter_key = getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
 
         streamed_success = False
 
-        # 1. Primary Model Attempt
-        if self.is_gemini_model(target_model):
-            if gemini_key:
-                try:
-                    async for token in self._chat_stream_gemini(messages, system_prompt, target_model, api_key=gemini_key, voice=voice):
-                        streamed_success = True
-                        yield token
-                    if streamed_success:
-                        return
-                except Exception as e:
-                    logger.warning("Primary Gemini stream failed (%s). Shifting...", e)
-        elif self.is_groq_model(target_model):
-            if groq_key:
-                try:
-                    async for token in self._chat_stream_groq(messages, system_prompt, target_model, api_key=groq_key, voice=voice):
-                        streamed_success = True
-                        yield token
-                    if streamed_success:
-                        return
-                except Exception as e:
-                    logger.warning("Primary Groq stream failed (%s). Shifting...", e)
-        elif self.is_openrouter_model(target_model):
-            if openrouter_key:
-                try:
-                    async for token in self._chat_stream_openrouter(messages, system_prompt, target_model, api_key=openrouter_key, voice=voice):
-                        streamed_success = True
-                        yield token
-                    if streamed_success:
-                        return
-                except Exception as e:
-                    logger.warning("Primary OpenRouter stream failed (%s). Shifting...", e)
-        else:
+        # ── 1. Priority Tier: Ollama (Laptop / Tunnel) ──────────────────────
+        try:
+            logger.info("Tier 1 Stream: Checking Ollama at %s...", self._ollama_base_url)
+            ollama_target = model if (model and ("qwen" in model.lower() or "ollama" in model.lower())) else self._ollama_model
+            async for token in self._chat_stream_ollama(messages, system_prompt, ollama_target, api_key=gemini_key, voice=voice):
+                streamed_success = True
+                yield token
+            if streamed_success:
+                return
+        except Exception as e:
+            logger.info("Tier 1 Stream: Ollama not running or unreachable (%s). Shifting to Tier 2: Gemini...", e)
+
+        # ── 2. Priority Tier: Google Gemini Cloud ───────────────────────────
+        if gemini_key:
             try:
-                async for token in self._chat_stream_ollama(messages, system_prompt, target_model, api_key=gemini_key, voice=voice):
+                logger.info("Tier 2 Stream: Streaming Google Gemini Flash...")
+                gemini_target = model if self.is_gemini_model(model) else self._gemini_default_model
+                async for token in self._chat_stream_gemini(messages, system_prompt, gemini_target, api_key=gemini_key, voice=voice):
                     streamed_success = True
                     yield token
                 if streamed_success:
                     return
             except Exception as e:
-                logger.warning("Primary Ollama stream failed (%s). Shifting...", e)
+                logger.warning("Tier 2 Stream: Gemini quota/credit exhausted (%s). Shifting to Tier 3: Groq...", e)
 
-        # 2. Failover: Gemini Cloud
-        if gemini_key and not self.is_gemini_model(target_model):
+        # ── 3. Priority Tier: Groq Cloud (LPU 300+ tok/s) ───────────────────
+        if groq_key:
             try:
-                logger.info("Failing over to Google Gemini Flash...")
-                async for token in self._chat_stream_gemini(messages, system_prompt, self._gemini_default_model, api_key=gemini_key, voice=voice):
+                logger.info("Tier 3 Stream: Streaming Groq Cloud LPU...")
+                groq_target = model if self.is_groq_model(model) else self._groq_default_model
+                async for token in self._chat_stream_groq(messages, system_prompt, groq_target, api_key=groq_key, voice=voice):
                     streamed_success = True
                     yield token
                 if streamed_success:
                     return
             except Exception as e:
-                logger.warning("Gemini stream failover failed: %s", e)
+                logger.warning("Tier 3 Stream: Groq rate-limited or failed (%s). Shifting to Tier 4: OpenAI...", e)
 
-        # 3. Failover: Groq Cloud
-        if groq_key and not self.is_groq_model(target_model):
+        # ── 4. Priority Tier: OpenAI ChatGPT (gpt-4o-mini) ──────────────────
+        if openai_key:
             try:
-                logger.info("Failing over to Groq Cloud...")
-                async for token in self._chat_stream_groq(messages, system_prompt, self._groq_default_model, api_key=groq_key, voice=voice):
+                logger.info("Tier 4 Stream: Streaming OpenAI ChatGPT...")
+                openai_target = model if self.is_openai_model(model) else self._openai_default_model
+                async for token in self._chat_stream_openai(messages, system_prompt, openai_target, api_key=openai_key, voice=voice):
                     streamed_success = True
                     yield token
                 if streamed_success:
                     return
             except Exception as e:
-                logger.warning("Groq stream failover failed: %s", e)
+                logger.warning("Tier 4 Stream: OpenAI credit over or failed (%s). Shifting to Tier 5: OpenRouter...", e)
 
-        # 4. Failover: OpenRouter
-        if openrouter_key and not self.is_openrouter_model(target_model):
+        # ── 5. Priority Tier: OpenRouter Free Models ────────────────────────
+        if openrouter_key:
             try:
-                logger.info("Failing over to OpenRouter...")
-                async for token in self._chat_stream_openrouter(messages, system_prompt, self._openrouter_default_model, api_key=openrouter_key, voice=voice):
+                logger.info("Tier 5 Stream: Streaming OpenRouter Free Models...")
+                or_target = model if self.is_openrouter_model(model) else self._openrouter_default_model
+                async for token in self._chat_stream_openrouter(messages, system_prompt, or_target, api_key=openrouter_key, voice=voice):
                     streamed_success = True
                     yield token
                 if streamed_success:
                     return
             except Exception as e:
-                logger.warning("OpenRouter stream failover failed: %s", e)
+                logger.warning("Tier 5 Stream: OpenRouter failed (%s). Engaging Tier 6 Safety Net...", e)
 
-        # 5. Failover: Ollama
-        if not (target_model and ("qwen" in target_model.lower() or "ollama" in target_model.lower())):
-            try:
-                logger.info("Failing over to Ollama (%s)...", self._ollama_base_url)
-                async for token in self._chat_stream_ollama(messages, system_prompt, self._ollama_model, api_key=gemini_key, voice=voice):
-                    streamed_success = True
-                    yield token
-                if streamed_success:
-                    return
-            except Exception as e:
-                logger.warning("Ollama stream failover failed: %s", e)
-
-        # 6. Final Deterministic Safety Net (Zero-Dependency Dialogue Engine)
+        # ── 6. Safety Net: Deterministic Dialogue Engine ────────────────────
+        logger.info("Tier 6 Stream: Engaging PromptAwareDialogueEngine safety net.")
         fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
         for word in fallback_text.split(" "):
             yield word + " "
@@ -714,28 +719,14 @@ class LLMEngine:
             "messages": self._build_ollama_messages(messages, system_prompt),
             "stream": False,
         }
-
-        try:
-            client = await self._get_ollama_client()
-            resp = await client.post("/api/chat", json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            content = data.get("message", {}).get("content", "")
-            return content.strip()
-        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as err:
-            logger.warning("Ollama unavailable or overloaded (%s). Attempting Gemini/Dialogue fallback...", err)
-            settings = get_settings()
-            key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-            if key:
-                try:
-                    return await self._chat_gemini(messages, system_prompt, settings.gemini_model, api_key=key, voice=voice)
-                except Exception as ge:
-                    logger.warning("Gemini fallback failed: %s", ge)
-
-            return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
-        except Exception as exc:
-            logger.error("LLM chat error: %s", exc, exc_info=True)
-            return self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
+        client = await self._get_ollama_client()
+        resp = await client.post("/api/chat", json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        content = data.get("message", {}).get("content", "")
+        if not content:
+            raise RuntimeError("Ollama returned empty response")
+        return content.strip()
 
     async def _chat_stream_ollama(
         self,
@@ -751,45 +742,23 @@ class LLMEngine:
             "messages": self._build_ollama_messages(messages, system_prompt),
             "stream": True,
         }
-
-        try:
-            client = await self._get_ollama_client()
-            async with client.stream("POST", "/api/chat", json=payload) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line.strip():
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-
-                    if data.get("done"):
-                        break
-
-                    token = data.get("message", {}).get("content", "")
-                    if token:
-                        yield token
-        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError) as err:
-            logger.warning("Ollama unavailable or overloaded (%s). Checking Gemini cloud fallback...", err)
-            settings = get_settings()
-            key = api_key or settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-            if key:
+        client = await self._get_ollama_client()
+        async with client.stream("POST", "/api/chat", json=payload) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line.strip():
+                    continue
                 try:
-                    async for token in self._chat_stream_gemini(messages, system_prompt, settings.gemini_model, api_key=key, voice=voice):
-                        yield token
-                    return
-                except Exception as ge:
-                    logger.warning("Gemini cloud fallback failed: %s", ge)
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
 
-            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
-            for word in fallback_text.split(" "):
-                yield word + " "
-        except Exception as exc:
-            logger.error("LLM stream error: %s", exc, exc_info=True)
-            fallback_text = self._prompt_engine.generate_reply(messages, system_prompt, voice=voice)
-            for word in fallback_text.split(" "):
-                yield word + " "
+                if data.get("done"):
+                    break
+
+                token = data.get("message", {}).get("content", "")
+                if token:
+                    yield token
 
     # ── Gemini Cloud Implementation ─────────────────────────────────────
 
@@ -1014,6 +983,117 @@ class LLMEngine:
                         return
             except Exception as exc:
                 logger.warning("Groq stream %s exception: %s", target_m, exc)
+
+    # ── OpenAI / ChatGPT Implementation ─────────────────────────────────
+
+    async def _chat_openai(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        voice: str | None = None,
+    ) -> str:
+        settings = get_settings()
+        key = api_key or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        if not key:
+            raise ValueError("No OpenAI API key configured")
+
+        target_model = model or self._openai_default_model
+        models_to_try = [target_model]
+        if target_model != "gpt-3.5-turbo":
+            models_to_try.append("gpt-3.5-turbo")
+
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        }
+        client = await self._get_openai_client()
+
+        for target_m in models_to_try:
+            payload = {
+                "model": target_m,
+                "messages": self._build_ollama_messages(messages, system_prompt),
+                "temperature": 0.7,
+                "max_tokens": 1024,
+                "stream": False,
+            }
+            try:
+                resp = await client.post("/chat/completions", json=payload, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        content = choices[0].get("message", {}).get("content", "")
+                        if content:
+                            return content.strip()
+                logger.warning("OpenAI model %s returned status %s: %s", target_m, resp.status_code, resp.text[:120])
+            except Exception as e:
+                logger.warning("OpenAI model %s error: %s", target_m, e)
+
+        raise RuntimeError("All OpenAI models failed")
+
+    async def _chat_stream_openai(
+        self,
+        messages: list[dict],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        voice: str | None = None,
+    ) -> AsyncGenerator[str, None]:
+        settings = get_settings()
+        key = api_key or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        if not key:
+            return
+
+        target_model = model or self._openai_default_model
+        models_to_try = [target_model]
+        if target_model != "gpt-3.5-turbo":
+            models_to_try.append("gpt-3.5-turbo")
+
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        }
+        client = await self._get_openai_client()
+        streamed_success = False
+
+        for target_m in models_to_try:
+            payload = {
+                "model": target_model,
+                "messages": self._build_ollama_messages(messages, system_prompt),
+                "temperature": 0.7,
+                "max_tokens": 1024,
+                "stream": True,
+            }
+            try:
+                async with client.stream("POST", "/chat/completions", json=payload, headers=headers) as resp:
+                    if resp.status_code != 200:
+                        err_text = await resp.aread()
+                        logger.warning("OpenAI stream %s returned %s: %s", target_m, resp.status_code, err_text.decode(errors="ignore")[:100])
+                        continue
+
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line or not line.startswith("data: "):
+                            continue
+                        if line == "data: [DONE]":
+                            break
+                        try:
+                            data = json.loads(line[6:].strip())
+                            choices = data.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                token = delta.get("content", "")
+                                if token:
+                                    streamed_success = True
+                                    yield token
+                        except json.JSONDecodeError:
+                            continue
+                    if streamed_success:
+                        return
+            except Exception as exc:
+                logger.warning("OpenAI stream %s exception: %s", target_m, exc)
 
     # ── OpenRouter Free Models Implementation ───────────────────────────
 
