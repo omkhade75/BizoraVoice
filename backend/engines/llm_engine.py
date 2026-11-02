@@ -555,10 +555,15 @@ class LLMEngine:
     ) -> str:
         """Send chat request with priority cascading failover."""
         settings = get_settings()
-        gemini_key = api_key or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        groq_key = getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
-        openai_key = getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
-        openrouter_key = getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        custom_gemini = api_key if (api_key and (api_key.startswith("AIza") or self.is_gemini_model(model))) else None
+        custom_groq = api_key if (api_key and (api_key.startswith("gsk_") or self.is_groq_model(model))) else None
+        custom_openai = api_key if (api_key and (api_key.startswith("sk-") and not api_key.startswith("sk-or-") or self.is_openai_model(model))) else None
+        custom_openrouter = api_key if (api_key and (api_key.startswith("sk-or-") or self.is_openrouter_model(model))) else None
+
+        gemini_key = custom_gemini or (api_key if not (custom_groq or custom_openai or custom_openrouter) else None) or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        groq_key = custom_groq or getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        openai_key = custom_openai or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        openrouter_key = custom_openrouter or getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
 
         # ── 1. Priority Tier: Ollama (Laptop / Tunnel) ──────────────────────
         try:
@@ -626,10 +631,15 @@ class LLMEngine:
     ) -> AsyncGenerator[str, None]:
         """Stream chat tokens with priority cascading failover."""
         settings = get_settings()
-        gemini_key = api_key or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        groq_key = getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
-        openai_key = getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
-        openrouter_key = getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        custom_gemini = api_key if (api_key and (api_key.startswith("AIza") or self.is_gemini_model(model))) else None
+        custom_groq = api_key if (api_key and (api_key.startswith("gsk_") or self.is_groq_model(model))) else None
+        custom_openai = api_key if (api_key and (api_key.startswith("sk-") and not api_key.startswith("sk-or-") or self.is_openai_model(model))) else None
+        custom_openrouter = api_key if (api_key and (api_key.startswith("sk-or-") or self.is_openrouter_model(model))) else None
+
+        gemini_key = custom_gemini or (api_key if not (custom_groq or custom_openai or custom_openrouter) else None) or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        groq_key = custom_groq or getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        openai_key = custom_openai or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        openrouter_key = custom_openrouter or getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
 
         streamed_success = False
 
