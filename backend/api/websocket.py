@@ -12,9 +12,11 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from core.events import CallState
 from core.session import session_manager
 from core.pipeline import VoicePipeline
+from core.audio_codecs import twilio_media_to_pcm16k, pcm_to_twilio_media
 from database.db import async_session_factory
-from database.models import Call, Message
+from database.models import Call, Message, Agent
 from engines.registry import stt_engine, tts_engine, llm_engine, vad_engine
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 ws_router = APIRouter(tags=["WebSocket"])
@@ -70,6 +72,28 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
             "state": state.value,
         })
 
+    # Check if this connection is a Twilio Media Stream or a Web Browser
+    is_twilio = False
+    twilio_stream_sid = None
+
+    async def send_audio_chunk(audio_chunk: bytes):
+        nonlocal is_twilio, twilio_stream_sid
+        if is_twilio and twilio_stream_sid:
+            try:
+                tw_payload = pcm_to_twilio_media(audio_chunk, 24000)
+                await send_json_safe({
+                    "event": "media",
+                    "streamSid": twilio_stream_sid,
+                    "media": {"payload": tw_payload},
+                })
+            except Exception as ex:
+                logger.error(f"Error sending audio to Twilio: {ex}")
+        else:
+            try:
+                await websocket.send_bytes(audio_chunk)
+            except Exception:
+                pass
+
     async def on_auto_transfer_callback(target_ref: str):
         if not session.squad_members:
             return
@@ -109,7 +133,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                     loop = asyncio.get_running_loop()
                     g_audio = await loop.run_in_executor(None, tts_engine.synthesize, greeting, session.voice)
                     if g_audio:
-                        await websocket.send_bytes(g_audio)
+                        await send_audio_chunk(g_audio)
                 except Exception as ex:
                     logger.error(f"Error speaking new agent greeting: {ex}")
 
@@ -124,7 +148,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         on_auto_transfer=on_auto_transfer_callback,
     )
 
-    # Initial ready notification
+    # Initial ready notification for web clients
     await send_json_safe({
         "type": "ready",
         "session_id": session.session_id,
@@ -132,8 +156,8 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         "state": CallState.LISTENING.value,
     })
 
-    # Play initial greeting if configured
-    if session.greeting_message and session.greeting_message.strip():
+    # Play initial greeting for web browser if configured (Twilio will trigger on 'start' event)
+    if session.greeting_message and session.greeting_message.strip() and not session_id.startswith("inbound_"):
         greeting = session.greeting_message.strip()
         logger.info(f"Speaking initial greeting: '{greeting}'")
         await pipeline.set_state(CallState.SPEAKING)
@@ -146,7 +170,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                 None, tts_engine.synthesize, greeting, session.voice
             )
             if greeting_audio:
-                await websocket.send_bytes(greeting_audio)
+                await send_audio_chunk(greeting_audio)
         except Exception as e:
             logger.error(f"Failed to synthesize initial greeting audio: {e}")
 
@@ -159,18 +183,87 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
             if "bytes" in message and message["bytes"]:
                 audio_bytes = message["bytes"]
                 async for output_chunk in pipeline.handle_audio_frame(audio_bytes):
-                    try:
-                        await websocket.send_bytes(output_chunk)
-                    except Exception as e:
-                        logger.error(f"Error sending audio chunk: {e}")
-                        break
+                    await send_audio_chunk(output_chunk)
 
             elif "text" in message and message["text"]:
                 try:
                     data = json.loads(message["text"])
+                    event_name = data.get("event")
                     msg_type = data.get("type")
 
-                    if msg_type == "mute":
+                    # ==========================================
+                    # TWILIO TELEPHONY PROTOCOL HANDLERS
+                    # ==========================================
+                    if event_name == "connected":
+                        is_twilio = True
+                        logger.info(f"Twilio Media Stream established for session {session_id}")
+
+                    elif event_name == "start":
+                        is_twilio = True
+                        start_info = data.get("start", {})
+                        twilio_stream_sid = data.get("streamSid") or start_info.get("streamSid")
+                        custom_params = start_info.get("customParameters", {})
+                        req_agent_id = custom_params.get("agentId")
+                        caller_phone = custom_params.get("caller")
+
+                        logger.info(
+                            f"Twilio call started: stream={twilio_stream_sid}, caller={caller_phone}, agent_id={req_agent_id}"
+                        )
+
+                        # Load agent profile if passed
+                        if req_agent_id:
+                            try:
+                                async with async_session_factory() as db:
+                                    a_res = await db.execute(select(Agent).where(Agent.id == req_agent_id))
+                                    agent_rec = a_res.scalar_one_or_none()
+                                    if agent_rec:
+                                        session.agent_id = agent_rec.id
+                                        session.voice = agent_rec.voice or session.voice
+                                        session.system_prompt = agent_rec.system_prompt or session.system_prompt
+                                        session.greeting_message = agent_rec.greeting_message or session.greeting_message
+                            except Exception as ex:
+                                logger.error(f"Error loading agent {req_agent_id} for Twilio: {ex}")
+
+                        # Trigger initial greeting into caller's telephone speaker immediately!
+                        initial_greeting = session.greeting_message or "नमस्कार! मी Bizora Voice AI सहाय्यक आहे. मी आपली काय मदत करू शकतो?"
+                        logger.info(f"Streaming initial greeting to Twilio telephone line: '{initial_greeting}'")
+                        await pipeline.set_state(CallState.SPEAKING)
+                        session.add_message("assistant", initial_greeting)
+                        await on_transcript_callback("assistant", initial_greeting, True)
+
+                        try:
+                            loop = asyncio.get_running_loop()
+                            g_audio = await loop.run_in_executor(
+                                None, tts_engine.synthesize, initial_greeting, session.voice
+                            )
+                            if g_audio:
+                                await send_audio_chunk(g_audio)
+                        except Exception as ex:
+                            logger.error(f"Error speaking Twilio initial greeting: {ex}")
+
+                        await pipeline.set_state(CallState.LISTENING)
+
+                    elif event_name == "media":
+                        # Inbound audio frame from caller's mobile phone microphone
+                        is_twilio = True
+                        media_obj = data.get("media", {})
+                        b64_payload = media_obj.get("payload")
+                        if not twilio_stream_sid:
+                            twilio_stream_sid = data.get("streamSid")
+
+                        if b64_payload:
+                            pcm_16k = twilio_media_to_pcm16k(b64_payload)
+                            async for output_chunk in pipeline.handle_audio_frame(pcm_16k):
+                                await send_audio_chunk(output_chunk)
+
+                    elif event_name == "stop":
+                        logger.info(f"Twilio call ended by phone caller (Stream {twilio_stream_sid})")
+                        break
+
+                    # ==========================================
+                    # BROWSER / WEB CLIENT HANDLERS
+                    # ==========================================
+                    elif msg_type == "mute":
                         session.is_muted = bool(data.get("value", False))
                         await send_json_safe({"type": "info", "message": f"Mute set to {session.is_muted}"})
 
@@ -216,7 +309,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                                         loop = asyncio.get_running_loop()
                                         t_audio = await loop.run_in_executor(None, tts_engine.synthesize, t_phrase, session.voice)
                                         if t_audio:
-                                            await websocket.send_bytes(t_audio)
+                                            await send_audio_chunk(t_audio)
                                     except Exception as ex:
                                         logger.error(f"Error speaking transfer phrase: {ex}")
 
@@ -241,7 +334,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                                         loop = asyncio.get_running_loop()
                                         g_audio = await loop.run_in_executor(None, tts_engine.synthesize, greeting, session.voice)
                                         if g_audio:
-                                            await websocket.send_bytes(g_audio)
+                                            await send_audio_chunk(g_audio)
                                     except Exception as ex:
                                         logger.error(f"Error speaking specialist greeting: {ex}")
 
@@ -249,11 +342,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
 
                             if not did_direct_transfer:
                                 async for output_chunk in pipeline.handle_user_text(user_text):
-                                    try:
-                                        await websocket.send_bytes(output_chunk)
-                                    except Exception as e:
-                                        logger.error(f"Error sending audio reply chunk: {e}")
-                                        break
+                                    await send_audio_chunk(output_chunk)
 
                     elif msg_type in ("switch_agent", "transfer", "handoff"):
                         agent_name = data.get("agent_name", "Specialist Agent")
@@ -287,7 +376,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                                 None, tts_engine.synthesize, transfer_phrase, session.voice
                             )
                             if handoff_audio:
-                                await websocket.send_bytes(handoff_audio)
+                                await send_audio_chunk(handoff_audio)
                         except Exception as e:
                             logger.error(f"Failed to synthesize handoff cue: {e}")
 
