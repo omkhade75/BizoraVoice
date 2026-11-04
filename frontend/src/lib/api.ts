@@ -996,6 +996,32 @@ export async function deletePhoneNumber(id: string): Promise<{ success: boolean;
   }
 }
 
+export async function placeOutboundCall(payload: {
+  to_number: string;
+  from_number?: string;
+  agent_id?: string;
+}): Promise<{
+  success: boolean;
+  provider: string;
+  call_sid?: string;
+  status?: string;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    return await request('/api/telephony/outbound', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    return {
+      success: false,
+      provider: 'error',
+      error: err.message || 'Failed to place outbound call',
+    };
+  }
+}
+
 // ==========================================
 // AUDIO STORAGE & VOICENOTE HELPERS
 // ==========================================

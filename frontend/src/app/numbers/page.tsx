@@ -15,6 +15,10 @@ import {
   Globe,
   Signal,
   Bot,
+  PhoneCall,
+  PhoneOutgoing,
+  X,
+  Loader2,
 } from 'lucide-react';
 import {
   PhoneNumber,
@@ -26,6 +30,7 @@ import {
   registerCustomNumber,
   updatePhoneNumber,
   deletePhoneNumber,
+  placeOutboundCall,
   getAgents,
 } from '@/lib/api';
 
@@ -53,6 +58,63 @@ export default function PhoneNumbersPage() {
 
   // Copied Webhook URL state
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Outbound Dial Modal State
+  const [dialModalOpen, setDialModalOpen] = useState(false);
+  const [dialFromNumber, setDialFromNumber] = useState('');
+  const [dialToNumber, setDialToNumber] = useState('');
+  const [dialAgentId, setDialAgentId] = useState('');
+  const [isDialing, setIsDialing] = useState(false);
+  const [dialResult, setDialResult] = useState<{
+    success: boolean;
+    message?: string;
+    call_sid?: string;
+    error?: string;
+  } | null>(null);
+
+  const openDialModal = (num: PhoneNumber) => {
+    setDialFromNumber(num.phone_number);
+    setDialAgentId(num.agent_id || (agents[0]?.id ?? ''));
+    setDialToNumber('');
+    setDialResult(null);
+    setDialModalOpen(true);
+  };
+
+  const handlePlaceCall = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dialToNumber.trim()) {
+      alert('Please enter a destination phone number with country code (e.g. +91...)');
+      return;
+    }
+    setIsDialing(true);
+    setDialResult(null);
+    try {
+      const res = await placeOutboundCall({
+        from_number: dialFromNumber,
+        to_number: dialToNumber.trim(),
+        agent_id: dialAgentId || undefined,
+      });
+      if (res.success) {
+        setDialResult({
+          success: true,
+          message: res.message || 'Call placed successfully via Twilio.',
+          call_sid: res.call_sid,
+        });
+      } else {
+        setDialResult({
+          success: false,
+          error: res.error || 'Failed to place call. Check Twilio credentials or destination number.',
+        });
+      }
+    } catch (err: any) {
+      setDialResult({
+        success: false,
+        error: err.message || 'Network error dialing number',
+      });
+    } finally {
+      setIsDialing(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -395,6 +457,17 @@ export default function PhoneNumbersPage() {
                         </select>
                       </div>
 
+                      {/* Make Call Button */}
+                      <button
+                        type="button"
+                        onClick={() => openDialModal(num)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold transition"
+                        title="Place Outbound Phone Call"
+                      >
+                        <PhoneOutgoing className="w-3.5 h-3.5" />
+                        <span>Make Call</span>
+                      </button>
+
                       {/* Webhook Copy */}
                       {num.webhook_url && (
                         <button
@@ -581,6 +654,137 @@ export default function PhoneNumbersPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* OUTBOUND CALL DIAL MODAL */}
+      {dialModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-obsidian-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-md w-full space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <PhoneOutgoing className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-text-primary">Make an Outbound Call</h3>
+                  <p className="text-[11px] text-text-tertiary">Twilio will dial this phone & connect your AI agent</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDialModalOpen(false)}
+                className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-obsidian-elevated transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handlePlaceCall} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
+                  Caller ID (Your Twilio Number)
+                </label>
+                <div className="px-3.5 py-2 bg-obsidian-canvas border border-border-subtle rounded-xl text-xs font-mono text-text-primary flex items-center justify-between">
+                  <span>{dialFromNumber}</span>
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold uppercase">
+                    Caller ID
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
+                  Which AI Agent Will Speak?
+                </label>
+                <select
+                  value={dialAgentId}
+                  onChange={(e) => setDialAgentId(e.target.value)}
+                  className="w-full bg-obsidian-elevated border border-border-subtle text-text-primary text-xs rounded-xl px-3 py-2 font-medium focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  {agents.map((ag) => (
+                    <option key={ag.id} value={ag.id}>
+                      {ag.name} ({ag.language.toUpperCase()} • {ag.voice || 'Neural Voice'})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-text-tertiary mt-1">
+                  The person who answers will hear this agent speaking immediately.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
+                  Destination Phone Number (To Call)
+                </label>
+                <input
+                  type="text"
+                  value={dialToNumber}
+                  onChange={(e) => setDialToNumber(e.target.value)}
+                  placeholder="+919822012345 or +12025550199"
+                  className="w-full px-3.5 py-2 bg-obsidian-elevated border border-border-subtle rounded-xl text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  required
+                />
+                <p className="text-[10px] text-text-tertiary mt-1">
+                  Include country code (e.g. +91 for India, +1 for US/Canada).
+                </p>
+              </div>
+
+              {/* Feedback Alert */}
+              {dialResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                    dialResult.success
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-red-500/10 border-red-500/20 text-red-400'
+                  }`}
+                >
+                  {dialResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-0.5">
+                    <p className="font-semibold">{dialResult.success ? 'Call Dispatched!' : 'Call Failed'}</p>
+                    <p className="text-[11px] opacity-90">{dialResult.message || dialResult.error}</p>
+                    {dialResult.call_sid && (
+                      <p className="font-mono text-[10px] opacity-75">SID: {dialResult.call_sid}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border-subtle">
+                <button
+                  type="button"
+                  onClick={() => setDialModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-border-subtle text-text-secondary hover:text-text-primary text-xs font-semibold transition"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDialing}
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs disabled:opacity-50"
+                >
+                  {isDialing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Ringing Line...</span>
+                    </>
+                  ) : (
+                    <>
+                      <PhoneCall className="w-3.5 h-3.5" />
+                      <span>Place Call Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
