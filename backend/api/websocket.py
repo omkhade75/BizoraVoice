@@ -73,6 +73,12 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         })
 
     # Check if this connection is a Twilio Media Stream or a Web Browser
+    is_phone_call = (
+        session_id.startswith("twilio_")
+        or session_id.startswith("inbound_")
+        or session_id.startswith("call_")
+        or session_id.startswith("CA")
+    )
     is_twilio = False
     twilio_stream_sid = None
 
@@ -80,15 +86,21 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         nonlocal is_twilio, twilio_stream_sid
         if is_twilio and twilio_stream_sid:
             try:
-                tw_payload = pcm_to_twilio_media(audio_chunk, 24000)
-                await send_json_safe({
-                    "event": "media",
-                    "streamSid": twilio_stream_sid,
-                    "media": {"payload": tw_payload},
-                })
+                # Twilio requires 20ms to 50ms chunks (2400 bytes at 24kHz)
+                chunk_size = 2400
+                for i in range(0, len(audio_chunk), chunk_size):
+                    sub = audio_chunk[i : i + chunk_size]
+                    tw_payload = pcm_to_twilio_media(sub, 24000)
+                    await send_json_safe({
+                        "event": "media",
+                        "streamSid": twilio_stream_sid,
+                        "media": {"payload": tw_payload},
+                    })
+                    # Continuous pacing for clean, uninterrupted telephony audio
+                    await asyncio.sleep(0.015)
             except Exception as ex:
                 logger.error(f"Error sending audio to Twilio: {ex}")
-        else:
+        elif not is_phone_call:
             try:
                 await websocket.send_bytes(audio_chunk)
             except Exception:
@@ -156,8 +168,8 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         "state": CallState.LISTENING.value,
     })
 
-    # Play initial greeting for web browser if configured (Twilio will trigger on 'start' event)
-    if session.greeting_message and session.greeting_message.strip() and not session_id.startswith("inbound_"):
+    # Play initial greeting ONLY for web browser (Twilio telephone will trigger on 'start' event)
+    if not is_phone_call and session.greeting_message and session.greeting_message.strip():
         greeting = session.greeting_message.strip()
         logger.info(f"Speaking initial greeting: '{greeting}'")
         await pipeline.set_state(CallState.SPEAKING)

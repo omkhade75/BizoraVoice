@@ -40,7 +40,7 @@ class TelephonyService:
         Initiate an outbound call to a recipient phone number.
         Supports Twilio, SIP/GSM Gateway, and Local Simulation.
         """
-        sid = session_id or f"call_{datetime.now().strftime('%Y%m%d%H%M%S')}_{to_number[-4:]}"
+        sid = session_id or f"twilio_{datetime.now().strftime('%Y%m%d%H%M%S')}_{to_number[-4:]}"
         caller = from_number or settings.twilio_phone_number or "+918000000000"
 
         logger.info(f"Initiating outbound call to {to_number} via [{provider}] (Caller: {caller})")
