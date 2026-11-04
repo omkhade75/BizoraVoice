@@ -95,7 +95,6 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                         "event": "media",
                         "streamSid": twilio_stream_sid,
                         "media": {
-                            "track": "outbound",
                             "payload": tw_payload,
                         },
                     })
@@ -163,6 +162,36 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         on_auto_transfer=on_auto_transfer_callback,
     )
 
+    cached_greeting_audio: Optional[bytes] = None
+    has_spoken_greeting = False
+    has_user_interacted = False
+    watchdog_task: Optional[asyncio.Task] = None
+
+    async def speak_greeting_to_call(force: bool = False):
+        nonlocal cached_greeting_audio, has_spoken_greeting
+        if has_spoken_greeting and not force:
+            return
+
+        initial_greeting = session.greeting_message or "नमस्ते! बिज़ोरा वॉइस सहायता केंद्र में आपका स्वागत है। मैं आपकी क्या मदद कर सकता हूँ?"
+        logger.info(f"Speaking initial greeting to call: '{initial_greeting}' (voice: {session.voice}, force={force})")
+        await pipeline.set_state(CallState.SPEAKING)
+        session.add_message("assistant", initial_greeting)
+        await on_transcript_callback("assistant", initial_greeting, True)
+
+        try:
+            if not cached_greeting_audio:
+                loop = asyncio.get_running_loop()
+                cached_greeting_audio = await loop.run_in_executor(
+                    None, tts_engine.synthesize, initial_greeting, session.voice
+                )
+            if cached_greeting_audio:
+                await send_audio_chunk(cached_greeting_audio)
+                has_spoken_greeting = True
+        except Exception as ex:
+            logger.error(f"Error speaking initial greeting: {ex}")
+        finally:
+            await pipeline.set_state(CallState.LISTENING)
+
     # Initial ready notification for web clients
     await send_json_safe({
         "type": "ready",
@@ -171,10 +200,10 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         "state": CallState.LISTENING.value,
     })
 
-    # Play initial greeting ONLY for web browser (Twilio telephone will trigger on 'start' event)
+    # Play initial greeting ONLY for web browser (Twilio telephone will trigger on 'start' or 'dtmf' event)
     if not is_phone_call and session.greeting_message and session.greeting_message.strip():
         greeting = session.greeting_message.strip()
-        logger.info(f"Speaking initial greeting: '{greeting}'")
+        logger.info(f"Speaking initial greeting for web client: '{greeting}'")
         await pipeline.set_state(CallState.SPEAKING)
         session.add_message("assistant", greeting)
         await on_transcript_callback("assistant", greeting, True)
@@ -244,27 +273,30 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                             except Exception as ex:
                                 logger.error(f"Error loading agent {req_agent_id} for Twilio: {ex}")
 
-                        # Trigger initial greeting into caller's telephone speaker immediately!
-                        initial_greeting = session.greeting_message or "नमस्ते! बिज़ोरा वॉइस सहायता केंद्र में आपका स्वागत है। मैं आपकी क्या मदद कर सकता हूँ?"
-                        logger.info(f"Streaming initial greeting to Twilio telephone line: '{initial_greeting}' (voice: {session.voice})")
-                        await pipeline.set_state(CallState.SPEAKING)
-                        session.add_message("assistant", initial_greeting)
-                        await on_transcript_callback("assistant", initial_greeting, True)
+                        # Trigger pre-synthesis & greeting for telephone line
+                        asyncio.create_task(speak_greeting_to_call(force=False))
 
-                        async def _speak_greeting_async():
-                            try:
-                                loop = asyncio.get_running_loop()
-                                g_audio = await loop.run_in_executor(
-                                    None, tts_engine.synthesize, initial_greeting, session.voice
-                                )
-                                if g_audio:
-                                    await send_audio_chunk(g_audio)
-                            except Exception as ex:
-                                logger.error(f"Error speaking Twilio initial greeting: {ex}")
-                            finally:
-                                await pipeline.set_state(CallState.LISTENING)
+                        # Watchdog for Twilio Free Trial accounts:
+                        # Twilio plays an English disclaimer ("You have a trial account... press any key to execute your code")
+                        # which takes ~6 to 7 seconds. If the user didn't press DTMF and no user speech arrived,
+                        # re-play the greeting so the user is guaranteed to hear the agent once the line opens!
+                        async def _trial_watchdog():
+                            await asyncio.sleep(7.5)
+                            if not has_user_interacted and is_twilio:
+                                logger.info("Watchdog: Twilio trial announcement finished. Prompting caller now!")
+                                await speak_greeting_to_call(force=True)
 
-                        asyncio.create_task(_speak_greeting_async())
+                        if watchdog_task and not watchdog_task.done():
+                            watchdog_task.cancel()
+                        watchdog_task = asyncio.create_task(_trial_watchdog())
+
+                    elif event_name == "dtmf":
+                        is_twilio = True
+                        has_user_interacted = True
+                        dtmf_info = data.get("dtmf", {})
+                        digit = dtmf_info.get("digit", "")
+                        logger.info(f"Twilio DTMF digit '{digit}' received. Caller bypassed trial prompt! Speaking greeting immediately!")
+                        asyncio.create_task(speak_greeting_to_call(force=True))
 
                     elif event_name == "media":
                         # Inbound audio frame from caller's mobile phone microphone
@@ -277,6 +309,7 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                         if b64_payload:
                             pcm_16k = twilio_media_to_pcm16k(b64_payload)
                             async for output_chunk in pipeline.handle_audio_frame(pcm_16k):
+                                has_user_interacted = True
                                 await send_audio_chunk(output_chunk)
 
                     elif event_name == "stop":
@@ -416,6 +449,9 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
     except Exception as e:
         logger.error(f"Unexpected WebSocket error: {e}", exc_info=True)
     finally:
+        if watchdog_task and not watchdog_task.done():
+            watchdog_task.cancel()
+
         # Finalize Call record in database
         try:
             async with async_session_factory() as db:

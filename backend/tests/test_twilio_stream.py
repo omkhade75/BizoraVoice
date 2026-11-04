@@ -37,7 +37,7 @@ async def test_twilio_websocket_media_stream():
         # Read ready event and greeting messages
         received_types = []
         received_events = []
-        for _ in range(5):
+        for _ in range(25):
             msg = ws.receive_text()
             data = json.loads(msg)
             if "type" in data:
@@ -46,7 +46,6 @@ async def test_twilio_websocket_media_stream():
                 received_events.append(data["event"])
                 if data["event"] == "media":
                     assert "payload" in data.get("media", {})
-                    assert data.get("media", {}).get("track") == "outbound"
                     assert data["streamSid"] == "MZ_unit_test_stream"
                     break
 

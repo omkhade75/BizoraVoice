@@ -6,6 +6,7 @@ Wired as: VAD -> STT -> LLM -> TTS -> Audio Output
 import asyncio
 import logging
 import re
+import time
 from typing import AsyncGenerator, Optional, Callable, Awaitable
 
 from core.events import CallState
@@ -42,11 +43,14 @@ class VoicePipeline:
         self.on_auto_transfer = on_auto_transfer
         self._is_processing_response = False
         self._current_gen_task: Optional[asyncio.Task] = None
+        self._speaking_start_time: float = 0.0
 
     async def set_state(self, new_state: CallState):
         """Update session state and notify callback."""
         if self.session.state != new_state:
             self.session.state = new_state
+            if new_state == CallState.SPEAKING:
+                self._speaking_start_time = time.monotonic()
             if self.on_state_change:
                 await self.on_state_change(new_state)
 
@@ -60,16 +64,21 @@ class VoicePipeline:
 
         # Check for barge-in / user interruption while assistant is thinking or speaking
         if self.session.state in (CallState.THINKING, CallState.SPEAKING):
-            is_speech, conf = self.vad.process_audio_chunk(audio_bytes, 16000)
-            if is_speech and conf > 0.6:
-                logger.info(f"User interrupted assistant! (Confidence: {conf:.2f})")
-                self.session.interrupted = True
-                if self._current_gen_task and not self._current_gen_task.done():
-                    self._current_gen_task.cancel()
-                self._is_processing_response = False
-                await self.set_state(CallState.LISTENING)
-                self.vad.reset()
-                return
+            # Suppress barge-in during the first 1.5 seconds of speaking to avoid false triggers from carrier connect clicks or initial prompt overlap
+            now_t = time.monotonic()
+            if self.session.state == CallState.SPEAKING and (now_t - self._speaking_start_time) < 1.5:
+                pass
+            else:
+                is_speech, conf = self.vad.process_audio_chunk(audio_bytes, 16000)
+                if is_speech and conf > 0.85:
+                    logger.info(f"User interrupted assistant! (Confidence: {conf:.2f})")
+                    self.session.interrupted = True
+                    if self._current_gen_task and not self._current_gen_task.done():
+                        self._current_gen_task.cancel()
+                    self._is_processing_response = False
+                    await self.set_state(CallState.LISTENING)
+                    self.vad.reset()
+                    return
 
         # Feed audio chunk into VAD buffer
         utterance_audio = self.vad.feed_audio(audio_bytes)

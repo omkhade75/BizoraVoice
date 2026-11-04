@@ -72,6 +72,8 @@ class TelephonyService:
         acc_sid = account_sid or settings.twilio_account_sid
         tok = auth_token or settings.twilio_auth_token
         base_url = settings.public_base_url.replace("http://", "ws://").replace("https://", "wss://")
+        if not base_url.startswith("ws://") and not base_url.startswith("wss://"):
+            base_url = f"wss://{base_url.lstrip('/')}"
         stream_ws = f"{base_url}/ws/call/{session_id}"
 
         if not acc_sid or not tok:
@@ -93,7 +95,7 @@ class TelephonyService:
             <Parameter name="to" value="{to_number}"/>
         </Stream>
     </Connect>
-    <Pause length="120"/>
+    <Pause length="600"/>
 </Response>"""
 
         url = f"https://api.twilio.com/2010-04-01/Accounts/{acc_sid}/Calls.json"

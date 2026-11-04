@@ -277,6 +277,8 @@ async def handle_twilio_incoming_call(
 
     session_id = f"inbound_{CallSid or datetime.now().strftime('%Y%m%d%H%M%S')}"
     base_ws = settings.public_base_url.replace("http://", "ws://").replace("https://", "wss://")
+    if not base_ws.startswith("ws://") and not base_ws.startswith("wss://"):
+        base_ws = f"wss://{base_ws.lstrip('/')}"
     stream_url = f"{base_ws}/ws/call/{session_id}"
 
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -288,7 +290,7 @@ async def handle_twilio_incoming_call(
             <Parameter name="caller" value="{From}"/>
         </Stream>
     </Connect>
-    <Pause length="120"/>
+    <Pause length="600"/>
 </Response>"""
 
     return Response(content=twiml_response, media_type="application/xml")
