@@ -314,7 +314,12 @@ async def place_outbound_call(
 
     # Lookup phone number record to retrieve tenant's encrypted credentials
     if from_number:
-        res = await db.execute(select(PhoneNumber).where(PhoneNumber.phone_number == from_number))
+        clean_from = from_number.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        res = await db.execute(
+            select(PhoneNumber).where(
+                (PhoneNumber.phone_number == from_number) | (PhoneNumber.phone_number == clean_from)
+            )
+        )
         pn = res.scalar_one_or_none()
         if pn:
             acc_sid = pn.account_sid
