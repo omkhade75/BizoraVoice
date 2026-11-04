@@ -86,18 +86,21 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
         nonlocal is_twilio, twilio_stream_sid
         if is_twilio and twilio_stream_sid:
             try:
-                # Twilio requires 20ms to 50ms chunks (2400 bytes at 24kHz)
-                chunk_size = 2400
+                # Twilio native frame: 20ms at 8kHz mu-law (160 bytes = 960 bytes of 24kHz PCM)
+                chunk_size = 960
                 for i in range(0, len(audio_chunk), chunk_size):
                     sub = audio_chunk[i : i + chunk_size]
                     tw_payload = pcm_to_twilio_media(sub, 24000)
                     await send_json_safe({
                         "event": "media",
                         "streamSid": twilio_stream_sid,
-                        "media": {"payload": tw_payload},
+                        "media": {
+                            "track": "outbound",
+                            "payload": tw_payload,
+                        },
                     })
-                    # Continuous pacing for clean, uninterrupted telephony audio
-                    await asyncio.sleep(0.015)
+                    # Continuous pacing (20ms) for real-time telephone audio streaming
+                    await asyncio.sleep(0.018)
             except Exception as ex:
                 logger.error(f"Error sending audio to Twilio: {ex}")
         elif not is_phone_call:
@@ -215,7 +218,12 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                         start_info = data.get("start", {})
                         twilio_stream_sid = data.get("streamSid") or start_info.get("streamSid")
                         custom_params = start_info.get("customParameters", {})
-                        req_agent_id = custom_params.get("agentId")
+                        req_agent_id = (
+                            custom_params.get("agentId")
+                            or custom_params.get("agentid")
+                            or custom_params.get("agent_id")
+                            or session.agent_id
+                        )
                         caller_phone = custom_params.get("caller")
 
                         logger.info(
@@ -237,23 +245,26 @@ async def call_websocket_endpoint(websocket: WebSocket, session_id: str):
                                 logger.error(f"Error loading agent {req_agent_id} for Twilio: {ex}")
 
                         # Trigger initial greeting into caller's telephone speaker immediately!
-                        initial_greeting = session.greeting_message or "नमस्कार! मी Bizora Voice AI सहाय्यक आहे. मी आपली काय मदत करू शकतो?"
-                        logger.info(f"Streaming initial greeting to Twilio telephone line: '{initial_greeting}'")
+                        initial_greeting = session.greeting_message or "नमस्ते! बिज़ोरा वॉइस सहायता केंद्र में आपका स्वागत है। मैं आपकी क्या मदद कर सकता हूँ?"
+                        logger.info(f"Streaming initial greeting to Twilio telephone line: '{initial_greeting}' (voice: {session.voice})")
                         await pipeline.set_state(CallState.SPEAKING)
                         session.add_message("assistant", initial_greeting)
                         await on_transcript_callback("assistant", initial_greeting, True)
 
-                        try:
-                            loop = asyncio.get_running_loop()
-                            g_audio = await loop.run_in_executor(
-                                None, tts_engine.synthesize, initial_greeting, session.voice
-                            )
-                            if g_audio:
-                                await send_audio_chunk(g_audio)
-                        except Exception as ex:
-                            logger.error(f"Error speaking Twilio initial greeting: {ex}")
+                        async def _speak_greeting_async():
+                            try:
+                                loop = asyncio.get_running_loop()
+                                g_audio = await loop.run_in_executor(
+                                    None, tts_engine.synthesize, initial_greeting, session.voice
+                                )
+                                if g_audio:
+                                    await send_audio_chunk(g_audio)
+                            except Exception as ex:
+                                logger.error(f"Error speaking Twilio initial greeting: {ex}")
+                            finally:
+                                await pipeline.set_state(CallState.LISTENING)
 
-                        await pipeline.set_state(CallState.LISTENING)
+                        asyncio.create_task(_speak_greeting_async())
 
                     elif event_name == "media":
                         # Inbound audio frame from caller's mobile phone microphone

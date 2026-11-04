@@ -46,6 +46,7 @@ async def test_twilio_websocket_media_stream():
                 received_events.append(data["event"])
                 if data["event"] == "media":
                     assert "payload" in data.get("media", {})
+                    assert data.get("media", {}).get("track") == "outbound"
                     assert data["streamSid"] == "MZ_unit_test_stream"
                     break
 
