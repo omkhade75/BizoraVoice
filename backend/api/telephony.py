@@ -288,6 +288,7 @@ async def handle_twilio_incoming_call(
             <Parameter name="caller" value="{From}"/>
         </Stream>
     </Connect>
+    <Pause length="120"/>
 </Response>"""
 
     return Response(content=twiml_response, media_type="application/xml")

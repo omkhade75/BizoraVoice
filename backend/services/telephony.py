@@ -46,7 +46,14 @@ class TelephonyService:
         logger.info(f"Initiating outbound call to {to_number} via [{provider}] (Caller: {caller})")
 
         if provider == "twilio":
-            return await TelephonyService._dial_twilio(to_number, caller, sid, account_sid, auth_token)
+            return await TelephonyService._dial_twilio(
+                to_number=to_number,
+                from_number=caller,
+                session_id=sid,
+                account_sid=account_sid,
+                auth_token=auth_token,
+                agent_id=agent_id,
+            )
         elif provider == "sip_gsm":
             return await TelephonyService._dial_sip_gsm(to_number, caller, sid)
         else:
@@ -59,6 +66,7 @@ class TelephonyService:
         session_id: str,
         account_sid: Optional[str] = None,
         auth_token: Optional[str] = None,
+        agent_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Dial via Twilio REST API with bi-directional Media Stream TwiML using tenant or global credentials."""
         acc_sid = account_sid or settings.twilio_account_sid
@@ -80,8 +88,12 @@ class TelephonyService:
     <Connect>
         <Stream url="{stream_ws}">
             <Parameter name="sessionId" value="{session_id}"/>
+            <Parameter name="agentId" value="{agent_id or ''}"/>
+            <Parameter name="caller" value="{from_number}"/>
+            <Parameter name="to" value="{to_number}"/>
         </Stream>
     </Connect>
+    <Pause length="120"/>
 </Response>"""
 
         url = f"https://api.twilio.com/2010-04-01/Accounts/{acc_sid}/Calls.json"
