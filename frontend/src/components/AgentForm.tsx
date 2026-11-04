@@ -205,7 +205,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                 <span>LLM Engine Architecture</span>
               </label>
               <span className="text-[10px] font-mono text-amber-500 font-semibold">
-                {llmProvider === 'gemini' ? '0% Laptop CPU (Cloud)' : 'Local On-Premises'}
+                {llmProvider === 'gemini' ? 'Google Cloud (Sub-300ms)' : 'On-Premise (Private)'}
               </span>
             </div>
 
@@ -222,7 +222,7 @@ export function AgentForm({ initialData, isOpen, onClose, onSubmit }: AgentFormP
                 <Cloud className="w-4 h-4 text-amber-500 shrink-0" />
                 <div className="text-left">
                   <div className="text-xs font-semibold">Google Gemini</div>
-                  <div className="text-[9px] text-text-tertiary">Cloud (0% load on laptop)</div>
+                  <div className="text-[9px] text-text-tertiary">Cloud Managed AI</div>
                 </div>
               </button>
 

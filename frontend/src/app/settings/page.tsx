@@ -99,7 +99,7 @@ export default function SettingsPage() {
 
   const handleTestOllama = async () => {
     setOllamaTesting(true);
-    setOllamaStatus({ status: 'idle', message: 'Connecting to local Ollama on this laptop...' });
+    setOllamaStatus({ status: 'idle', message: 'Connecting to Ollama endpoint...' });
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -110,7 +110,7 @@ export default function SettingsPage() {
         const count = (data.models || []).length;
         setOllamaStatus({
           status: 'ok',
-          message: `Connected successfully! Found ${count} model(s) installed on this laptop.`,
+          message: `Connected successfully! Found ${count} model(s) installed.`,
         });
       } else {
         setOllamaStatus({
@@ -193,15 +193,15 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                  <span>AI Inference Engine & Laptop Hardware Load</span>
+                  <span>AI Inference Engine</span>
                 </h3>
                 <p className="text-xs text-text-tertiary">
-                  Choose when to run models on Google Cloud (0% laptop load) vs your local machine (Ollama)
+                  Select your primary LLM intelligence engine: Google Cloud or Sovereign On-Premise Ollama
                 </p>
               </div>
             </div>
             <span className="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
-              Hardware Aware
+              Multi-Engine
             </span>
           </div>
 
@@ -219,14 +219,14 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Cloud className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-xs text-text-primary">Google Gemini 2.5 Flash</span>
+                  <span className="font-bold text-xs text-text-primary">Google Gemini 2.0 Flash</span>
                 </div>
                 <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
-                  0% LAPTOP LOAD
+                  CLOUD AI
                 </span>
               </div>
               <p className="text-xs text-text-secondary leading-relaxed">
-                Runs on Google Cloud infrastructure. Best when your laptop is under heavy load, running other programs, or to save battery and prevent fan noise.
+                Runs on Google Cloud infrastructure. Ultra-low latency conversational speed with multi-lingual Indic language support.
               </p>
               <div className="mt-3 text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-bold">
                 <Zap className="w-3 h-3" />
@@ -246,17 +246,17 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Cpu className="w-4 h-4 text-amber-400" />
-                  <span className="font-bold text-xs text-text-primary">Local Ollama</span>
+                  <span className="font-bold text-xs text-text-primary">Sovereign Ollama</span>
                 </div>
                 <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">
-                  ON-DEVICE
+                  ON-PREMISE
                 </span>
               </div>
               <p className="text-xs text-text-secondary leading-relaxed">
-                Runs directly on your laptop (qwen3.5:4b, llama3). 100% private, sovereign data. Requires 4GB–8GB free RAM and uses local CPU/GPU.
+                Runs on your private on-premise Ollama instance (qwen3.5:4b, llama3). 100% private, sovereign data.
               </p>
               <div className="mt-3 text-[10px] font-mono text-text-tertiary flex items-center gap-1">
-                <span>Requires local Ollama daemon</span>
+                <span>Requires active Ollama service</span>
               </div>
             </button>
           </div>
@@ -266,7 +266,7 @@ export default function SettingsPage() {
             <div className="p-4 rounded-xl bg-obsidian-elevated border border-border-subtle space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-text-secondary">
-                  Local Ollama URL on This Laptop
+                  Ollama Service URL
                 </label>
                 <button
                   type="button"

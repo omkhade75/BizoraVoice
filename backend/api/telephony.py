@@ -313,6 +313,7 @@ async def place_outbound_call(
 
     acc_sid = None
     auth_token = None
+    line_provider = None
 
     # Lookup phone number record to retrieve tenant's encrypted credentials
     if from_number:
@@ -324,18 +325,49 @@ async def place_outbound_call(
         )
         pn = res.scalar_one_or_none()
         if pn:
+            line_provider = pn.provider
             acc_sid = pn.account_sid
             if pn.encrypted_auth_token:
                 auth_token = decrypt_secret(pn.encrypted_auth_token)
             if not agent_id and pn.agent_id:
                 agent_id = pn.agent_id
 
-    result = await TelephonyService.dial_number(
-        to_number=to_number,
-        from_number=from_number,
-        agent_id=agent_id,
-        provider="twilio" if (acc_sid and auth_token) else ("twilio" if settings.twilio_account_sid else "simulation"),
-        account_sid=acc_sid,
-        auth_token=auth_token,
-    )
+    # If this is specifically a physical GSM SIM number without hardware gateway
+    if line_provider == "gsm_gateway" and not settings.sip_gateway_host:
+        return {
+            "success": False,
+            "provider": "gsm_gateway",
+            "call_sid": None,
+            "status": "failed",
+            "error": "This line is registered as a physical 4G GSM SIM, which requires an on-premise VoIP GSM Gateway hardware box (GoIP/Dinstar). To place live phone calls right now, please use your imported Twilio line.",
+        }
+
+    final_acc_sid = acc_sid or settings.twilio_account_sid
+    final_auth_tok = auth_token or settings.twilio_auth_token
+
+    if line_provider == "twilio" or final_acc_sid:
+        result = await TelephonyService.dial_number(
+            to_number=to_number,
+            from_number=from_number,
+            agent_id=agent_id,
+            provider="twilio",
+            account_sid=final_acc_sid,
+            auth_token=final_auth_tok,
+        )
+    elif line_provider == "gsm_gateway":
+        result = await TelephonyService.dial_number(
+            to_number=to_number,
+            from_number=from_number,
+            agent_id=agent_id,
+            provider="sip_gsm",
+        )
+    else:
+        result = {
+            "success": False,
+            "provider": "unknown",
+            "call_sid": None,
+            "status": "failed",
+            "error": f"Number '{from_number}' is not recognized as an active telephony line. Please use your imported Twilio number to dial out.",
+        }
+
     return result

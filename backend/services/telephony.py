@@ -77,13 +77,13 @@ class TelephonyService:
         stream_ws = f"{base_url}/ws/call/{session_id}"
 
         if not acc_sid or not tok:
-            logger.warning("Twilio credentials not configured; falling back to safe local simulation.")
+            logger.warning("Twilio credentials not configured.")
             return {
-                "success": True,
-                "provider": "simulation_fallback",
-                "call_sid": f"CA_sim_{session_id}",
-                "status": "connected",
-                "message": "Twilio keys not set in .env; simulated successfully.",
+                "success": False,
+                "provider": "twilio",
+                "call_sid": None,
+                "status": "failed",
+                "error": "Twilio Account SID or Auth Token missing. Please configure your Twilio credentials in the Import Twilio tab.",
             }
 
         twiml = f"""<Response>
@@ -131,19 +131,28 @@ class TelephonyService:
     async def _dial_sip_gsm(to_number: str, from_number: str, session_id: str) -> Dict[str, Any]:
         """
         Dial out via local 4G VoLTE GSM Gateway / SIP PBX (e.g. GoIP, Dinstar, Asterisk).
-        Uses a standard ₹299/mo Jio/Airtel SIM.
+        Requires an active SIP gateway host and port.
         """
-        host = settings.sip_gateway_host or "127.0.0.1"
+        host = settings.sip_gateway_host
         port = settings.sip_gateway_port or 5060
 
+        if not host:
+            logger.warning(f"Attempted to dial via GSM line {from_number}, but no SIP gateway host is configured.")
+            return {
+                "success": False,
+                "provider": "sip_gsm",
+                "call_sid": None,
+                "status": "failed",
+                "error": "No physical GSM Gateway configured. To place live calls, please use your imported Twilio line or connect an on-premise GSM Gateway in Settings.",
+            }
+
         logger.info(f"Routing call {to_number} to SIP/GSM Gateway at {host}:{port}")
-        # When GSM gateway is configured, sends SIP INVITE or HTTP dialing trigger
         return {
             "success": True,
             "provider": "sip_gsm",
             "call_sid": f"SIP_{session_id}",
             "status": "ringing",
-            "message": f"Routed via GSM Gateway ({host}:{port}) using local Indian SIM. Zero OTP restrictions.",
+            "message": f"Routed via GSM Gateway ({host}:{port}) using local Indian SIM.",
         }
 
     @staticmethod
@@ -154,14 +163,14 @@ class TelephonyService:
         agent_id: Optional[str] = None,
         variables: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Simulate outbound connection and speech loop."""
-        await asyncio.sleep(0.5)  # simulate network dial time
+        """Outbound dialing requires a live provider."""
+        logger.warning(f"Cannot place live call: no telephony carrier configured for caller ID {from_number}")
         return {
-            "success": True,
-            "provider": "simulation",
-            "call_sid": f"SIM_{session_id}",
-            "status": "completed",
-            "message": "Outbound call completed successfully in simulation mode.",
+            "success": False,
+            "provider": "unconfigured",
+            "call_sid": None,
+            "status": "failed",
+            "error": f"Cannot place live call: Number '{from_number}' is not associated with an active Twilio line or GSM gateway. Please select your verified Twilio number to place calls.",
         }
 
     @staticmethod

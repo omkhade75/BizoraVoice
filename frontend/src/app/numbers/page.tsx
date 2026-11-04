@@ -73,7 +73,10 @@ export default function PhoneNumbersPage() {
   } | null>(null);
 
   const openDialModal = (num: PhoneNumber) => {
-    setDialFromNumber(num.phone_number);
+    // If user clicked a non-Twilio number, prefer an imported Twilio line if available
+    const twilioNums = phoneNumbers.filter((n) => n.provider === 'twilio');
+    const defaultFrom = num.provider === 'twilio' ? num.phone_number : (twilioNums[0]?.phone_number || num.phone_number);
+    setDialFromNumber(defaultFrom);
     setDialAgentId(num.agent_id || (agents[0]?.id ?? ''));
     setDialToNumber('');
     setDialResult(null);
@@ -86,6 +89,16 @@ export default function PhoneNumbersPage() {
       alert('Please enter a destination phone number with country code (e.g. +91...)');
       return;
     }
+
+    const selectedLine = phoneNumbers.find((n) => n.phone_number === dialFromNumber);
+    if (selectedLine && selectedLine.provider === 'gsm_gateway') {
+      setDialResult({
+        success: false,
+        error: 'This number is registered as a physical 4G GSM SIM, which requires an on-premise VoIP GSM Gateway hardware box. To place live calls right now, please select an imported Twilio line.',
+      });
+      return;
+    }
+
     setIsDialing(true);
     setDialResult(null);
     try {
@@ -94,7 +107,7 @@ export default function PhoneNumbersPage() {
         to_number: dialToNumber.trim(),
         agent_id: dialAgentId || undefined,
       });
-      if (res.success) {
+      if (res.success && res.provider === 'twilio') {
         setDialResult({
           success: true,
           message: res.message || 'Call placed successfully via Twilio.',
@@ -103,7 +116,7 @@ export default function PhoneNumbersPage() {
       } else {
         setDialResult({
           success: false,
-          error: res.error || 'Failed to place call. Check Twilio credentials or destination number.',
+          error: res.error || (res.message && res.provider !== 'twilio' ? 'Calls can only be placed through active Twilio lines.' : 'Failed to place call. Check Twilio credentials or destination number.'),
         });
       }
     } catch (err: any) {
@@ -462,16 +475,26 @@ export default function PhoneNumbersPage() {
                         </select>
                       </div>
 
-                      {/* Make Call Button */}
-                      <button
-                        type="button"
-                        onClick={() => openDialModal(num)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold transition"
-                        title="Place Outbound Phone Call"
-                      >
-                        <PhoneOutgoing className="w-3.5 h-3.5" />
-                        <span>Make Call</span>
-                      </button>
+                      {/* Make Call Button (Twilio verified lines only) */}
+                      {num.provider === 'twilio' ? (
+                        <button
+                          type="button"
+                          onClick={() => openDialModal(num)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas text-xs font-bold transition shadow-xs"
+                          title="Place Outbound Phone Call via Twilio"
+                        >
+                          <PhoneOutgoing className="w-3.5 h-3.5" />
+                          <span>Make Call</span>
+                        </button>
+                      ) : (
+                        <div
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-obsidian-elevated text-text-tertiary border border-border-subtle text-[10px] font-mono"
+                          title="Requires physical VoIP GSM Gateway hardware connected to this SIM card. Live calls must be placed using a verified Twilio line."
+                        >
+                          <Signal className="w-3 h-3 text-text-tertiary" />
+                          <span>Hardware Required</span>
+                        </div>
+                      )}
 
                       {/* Webhook Copy */}
                       {num.webhook_url && (
@@ -716,15 +739,28 @@ export default function PhoneNumbersPage() {
             <form onSubmit={handlePlaceCall} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1">
-                  Caller ID (Your Twilio Number)
+                  Caller ID Line
                 </label>
                 <div className="px-3.5 py-2 bg-obsidian-canvas border border-border-subtle rounded-xl text-xs font-mono text-text-primary flex items-center justify-between">
                   <span>{dialFromNumber}</span>
-                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold uppercase">
-                    Caller ID
+                  <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full uppercase font-bold ${
+                    phoneNumbers.find(n => n.phone_number === dialFromNumber)?.provider === 'twilio'
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  }`}>
+                    {phoneNumbers.find(n => n.phone_number === dialFromNumber)?.provider === 'twilio' ? 'Twilio Verified' : 'GSM Physical SIM'}
                   </span>
                 </div>
               </div>
+
+              {phoneNumbers.find(n => n.phone_number === dialFromNumber)?.provider === 'gsm_gateway' && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div>
+                    <span className="font-bold">Physical 4G GSM SIM Line:</span> This number is a SIM card, which requires physical hardware (VoIP GSM gateway box) connected on-premise. To make live telephone calls right now, please select an imported Twilio number.
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1">
@@ -798,13 +834,18 @@ export default function PhoneNumbersPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isDialing}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs disabled:opacity-50"
+                  disabled={isDialing || phoneNumbers.find(n => n.phone_number === dialFromNumber)?.provider === 'gsm_gateway'}
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isDialing ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Ringing Line...</span>
+                    </>
+                  ) : phoneNumbers.find(n => n.phone_number === dialFromNumber)?.provider === 'gsm_gateway' ? (
+                    <>
+                      <Signal className="w-3.5 h-3.5 text-obsidian-canvas" />
+                      <span>Twilio Line Required</span>
                     </>
                   ) : (
                     <>

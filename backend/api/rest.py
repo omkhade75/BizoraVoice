@@ -166,8 +166,8 @@ async def list_models():
         "providers": [
             {
                 "id": "gemini",
-                "name": "Google Gemini (Cloud - 0% Laptop Load)",
-                "description": "Ultra-fast sub-400ms cloud inference running entirely on Google servers. Zero CPU/GPU usage on your machine.",
+                "name": "Google Gemini (Cloud AI)",
+                "description": "Ultra-fast sub-300ms cloud inference running on Google Cloud infrastructure.",
                 "is_cloud": True,
                 "models": [
                     {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "recommended": True, "speed": "Sub-300ms", "context": "1M tokens"},
