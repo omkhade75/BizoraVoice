@@ -191,7 +191,12 @@ export default function PhoneNumbersPage() {
         agent_id: selectedAgentForImport || undefined,
       });
       await loadData();
-      setActiveTab('directory');
+      setAvailableTwilioNumbers((prev) =>
+        prev.map((item) =>
+          item.phone_number === num.phone_number ? { ...item, already_imported: true } : item
+        )
+      );
+      setTwilioSuccessMsg(`Successfully imported ${num.phone_number} to your Studio.`);
     } catch (err: any) {
       alert(`Import failed: ${err.message}`);
     } finally {
@@ -580,20 +585,47 @@ export default function PhoneNumbersPage() {
                 {availableTwilioNumbers.map((num) => (
                   <div key={num.provider_sid || num.phone_number} className="p-4 flex items-center justify-between hover:bg-obsidian-elevated/40">
                     <div>
-                      <div className="font-mono font-bold text-sm text-text-primary">{num.phone_number}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-text-primary">{num.phone_number}</span>
+                        {num.already_imported && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                            Imported ✓
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-text-tertiary">{num.friendly_name || 'Standard Inbound Voice'}</div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleImportNumber(num)}
-                      disabled={isImporting}
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs"
-                    >
-                      Import to Studio
-                    </button>
+                    {num.already_imported ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('directory')}
+                        className="px-3.5 py-1.5 rounded-xl border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-xs font-semibold hover:bg-emerald-500/20 transition"
+                      >
+                        View in Directory →
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleImportNumber(num)}
+                        disabled={isImporting}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-obsidian-canvas font-bold text-xs transition shadow-xs"
+                      >
+                        {isImporting ? 'Importing...' : 'Import to Studio'}
+                      </button>
+                    )}
                   </div>
                 ))}
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-obsidian-elevated/50 border border-border-subtle text-xs text-text-tertiary space-y-1">
+                <p className="font-semibold text-text-secondary">💡 Note on Twilio Number Capacity:</p>
+                <p>
+                  • <strong>Twilio Free Trial:</strong> Twilio provides <strong>1 free incoming phone number</strong> per trial account.
+                </p>
+                <p>
+                  • <strong>Multiple Phone Numbers:</strong> To buy and import 2, 5, or 100 Twilio numbers, upgrade your Twilio account balance, or add additional physical 4G VoLTE GSM SIM lines under the <em>4G GSM SIM</em> tab.
+                </p>
               </div>
             </div>
           )}
