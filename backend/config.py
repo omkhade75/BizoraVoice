@@ -8,7 +8,7 @@ Uses pydantic-settings for validation and type coercion.
 from functools import lru_cache
 from typing import ClassVar, Dict, Any, List
 
-from pydantic import field_validator
+from pydantic import field_validator, Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,27 +42,27 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     # ── Google Gemini Cloud LLM ─────────────────────────────────────────
-    gemini_api_key: str = ""
+    gemini_api_key: str = Field(default="", validation_alias=AliasChoices("gemini_api_key", "GEMINI_API_KEY", "GEMINI_Api_key", "gemini_key"))
     gemini_model: str = "gemini-2.0-flash"
     gemini_timeout: int = 60
 
     # ── OpenAI / ChatGPT LLM ───────────────────────────────────────────
-    openai_api_key: str = ""
+    openai_api_key: str = Field(default="", validation_alias=AliasChoices("openai_api_key", "OPENAI_API_KEY", "openai_key", "chatgpt"))
     openai_model: str = "gpt-4o-mini"
     openai_timeout: int = 30
 
     # ── Groq Cloud LLM (Ultra-Fast Free Tier - 300+ tok/s) ──────────────
-    groq_api_key: str = ""
+    groq_api_key: str = Field(default="", validation_alias=AliasChoices("groq_api_key", "GROQ_API_KEY", "groq", "GROQ", "groq_key"))
     groq_model: str = "llama-3.3-70b-versatile"
     groq_timeout: int = 30
 
     # ── OpenRouter Free Tier Models ─────────────────────────────────────
-    openrouter_api_key: str = ""
+    openrouter_api_key: str = Field(default="", validation_alias=AliasChoices("openrouter_api_key", "OPENROUTER_API_KEY", "open_router", "OPEN_ROUTER", "openrouter"))
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
     openrouter_timeout: int = 30
 
     # ── Ollama Local LLM ────────────────────────────────────────────────
-    ollama_base_url: str = "http://localhost:11434"
+    ollama_base_url: str = Field(default="http://localhost:11434", validation_alias=AliasChoices("ollama_base_url", "OLLAMA_BASE_URL", "ollama_url"))
     ollama_model: str = "qwen3.5:4b"
     ollama_timeout: int = 120
 

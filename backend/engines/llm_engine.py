@@ -333,17 +333,17 @@ class LLMEngine:
         self._ollama_model = settings.ollama_model
         self._ollama_timeout = settings.ollama_timeout
 
-        self._gemini_api_key = settings.gemini_api_key
+        self._gemini_api_key = settings.gemini_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_Api_key", "")
         self._gemini_default_model = settings.gemini_model
         self._gemini_timeout = settings.gemini_timeout
 
-        self._openai_api_key = getattr(settings, "openai_api_key", "") or os.environ.get("OPENAI_API_KEY", "")
+        self._openai_api_key = getattr(settings, "openai_api_key", "") or os.environ.get("OPENAI_API_KEY", "") or os.environ.get("chatgpt", "")
         self._openai_default_model = getattr(settings, "openai_model", "gpt-4o-mini")
 
-        self._groq_api_key = getattr(settings, "groq_api_key", "") or os.environ.get("GROQ_API_KEY", "")
+        self._groq_api_key = getattr(settings, "groq_api_key", "") or os.environ.get("GROQ_API_KEY", "") or os.environ.get("groq", "") or os.environ.get("GROQ", "")
         self._groq_default_model = getattr(settings, "groq_model", "llama-3.3-70b-versatile")
 
-        self._openrouter_api_key = getattr(settings, "openrouter_api_key", "") or os.environ.get("OPENROUTER_API_KEY", "")
+        self._openrouter_api_key = getattr(settings, "openrouter_api_key", "") or os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("open_router", "") or os.environ.get("OPEN_ROUTER", "")
         self._openrouter_default_model = getattr(settings, "openrouter_model", "meta-llama/llama-3.1-8b-instruct:free")
 
         self._ollama_client: httpx.AsyncClient | None = None
@@ -560,10 +560,10 @@ class LLMEngine:
         custom_openai = api_key if (api_key and (api_key.startswith("sk-") and not api_key.startswith("sk-or-") or self.is_openai_model(model))) else None
         custom_openrouter = api_key if (api_key and (api_key.startswith("sk-or-") or self.is_openrouter_model(model))) else None
 
-        gemini_key = custom_gemini or (api_key if not (custom_groq or custom_openai or custom_openrouter) else None) or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        groq_key = custom_groq or getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
-        openai_key = custom_openai or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
-        openrouter_key = custom_openrouter or getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        gemini_key = custom_gemini or (api_key if not (custom_groq or custom_openai or custom_openrouter) else None) or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_Api_key", "")
+        groq_key = custom_groq or getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "") or os.environ.get("groq", "") or os.environ.get("GROQ", "")
+        openai_key = custom_openai or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "") or os.environ.get("chatgpt", "")
+        openrouter_key = custom_openrouter or getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("open_router", "") or os.environ.get("OPEN_ROUTER", "")
 
         # ── 1. Priority Tier: Ollama (Laptop / Tunnel) ──────────────────────
         try:
@@ -636,10 +636,10 @@ class LLMEngine:
         custom_openai = api_key if (api_key and (api_key.startswith("sk-") and not api_key.startswith("sk-or-") or self.is_openai_model(model))) else None
         custom_openrouter = api_key if (api_key and (api_key.startswith("sk-or-") or self.is_openrouter_model(model))) else None
 
-        gemini_key = custom_gemini or (api_key if not (custom_groq or custom_openai or custom_openrouter) else None) or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        groq_key = custom_groq or getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
-        openai_key = custom_openai or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "")
-        openrouter_key = custom_openrouter or getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        gemini_key = custom_gemini or (api_key if not (custom_groq or custom_openai or custom_openrouter) else None) or getattr(settings, "gemini_api_key", "") or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_Api_key", "")
+        groq_key = custom_groq or getattr(settings, "groq_api_key", "") or self._groq_api_key or os.environ.get("GROQ_API_KEY", "") or os.environ.get("groq", "") or os.environ.get("GROQ", "")
+        openai_key = custom_openai or getattr(settings, "openai_api_key", "") or self._openai_api_key or os.environ.get("OPENAI_API_KEY", "") or os.environ.get("chatgpt", "")
+        openrouter_key = custom_openrouter or getattr(settings, "openrouter_api_key", "") or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", "") or os.environ.get("open_router", "") or os.environ.get("OPEN_ROUTER", "")
 
         streamed_success = False
 
@@ -730,7 +730,9 @@ class LLMEngine:
             "stream": False,
         }
         client = await self._get_ollama_client()
-        resp = await client.post("/api/chat", json=payload)
+        # Fast 2.5s connect/read timeout for immediate failover when laptop server is not active
+        fast_timeout = httpx.Timeout(connect=2.0, read=2.5, write=2.0, pool=2.0)
+        resp = await client.post("/api/chat", json=payload, timeout=fast_timeout)
         resp.raise_for_status()
         data = resp.json()
         content = data.get("message", {}).get("content", "")
@@ -753,7 +755,8 @@ class LLMEngine:
             "stream": True,
         }
         client = await self._get_ollama_client()
-        async with client.stream("POST", "/api/chat", json=payload) as resp:
+        fast_timeout = httpx.Timeout(connect=2.0, read=2.5, write=2.0, pool=2.0)
+        async with client.stream("POST", "/api/chat", json=payload, timeout=fast_timeout) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if not line.strip():
