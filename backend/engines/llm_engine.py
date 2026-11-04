@@ -474,18 +474,32 @@ class LLMEngine:
         return "openrouter" in m or ":free" in m
 
     async def is_reachable(self, model: Optional[str] = None) -> bool:
-        """Check whether the target LLM provider is reachable."""
+        """Check whether the target LLM provider (or any provider in the failover chain) is reachable."""
+        settings = get_settings()
         if self.is_gemini_model(model):
-            settings = get_settings()
             key = settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
             return bool(key and len(key) > 5)
 
+        if self.is_groq_model(model):
+            key = settings.groq_api_key or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")
+            return bool(key and len(key) > 5)
+
+        # Check Ollama with strict 2.0s timeout
         try:
             client = await self._get_ollama_client()
-            resp = await client.get("/api/tags", timeout=5.0)
-            return resp.status_code == 200
+            resp = await client.get("/api/tags", timeout=httpx.Timeout(2.0))
+            if resp.status_code == 200:
+                return True
         except Exception:
-            return False
+            pass
+
+        # If Ollama is offline, check if Cloud fallback (Gemini, Groq, OpenRouter) is ready
+        has_cloud = bool(
+            (settings.gemini_api_key or self._gemini_api_key or os.environ.get("GEMINI_API_KEY", "")) or
+            (settings.groq_api_key or self._groq_api_key or os.environ.get("GROQ_API_KEY", "")) or
+            (settings.openrouter_api_key or self._openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", ""))
+        )
+        return has_cloud
 
     # ── Ollama Helper ───────────────────────────────────────────────────
 
